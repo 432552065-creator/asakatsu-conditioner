@@ -1,0 +1,2643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>朝活コンディショナー 🌱 朝30秒の体調管理＆WBGTリスクチェッカー</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts Noto Sans JP & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        },
+                        chat: {
+                            bg: '#f3f4f6',
+                            user: '#22c55e',
+                            ai: '#ffffff',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans JP', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* メッセージ登場アニメーション */
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.96) translateY(8px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .message-pop {
+            animation: popIn 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        .animate-popIn {
+            animation: popIn 0.2s ease-out forwards;
+        }
+        /* スクロールバーのカスタマイズ */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* タイピングアニメーション */
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-gray-800 font-sans min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- ================= 1. アプリケーションヘッダー ================= -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+
+            <!-- ロゴとタイトル -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-white text-xl shadow-md font-extrabold tracking-wider">
+                    🌱
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-gray-900 text-base md:text-lg flex items-center space-x-1.5">
+                        <span>朝活コンディショナー</span>
+                        <span class="text-[10px] bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-bold">体調管理</span>
+                    </h1>
+                    <p class="text-[11px] text-gray-500 hidden sm:block">朝の30秒で体調管理 ＆ 熱中症・寒暖リスク予防</p>
+                </div>
+            </div>
+
+            <!-- 環境リスク・天候ミニ表示バッジ -->
+            <div id="weather-badge" class="flex flex-wrap items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-xs">
+                <span class="font-bold text-gray-800 whitespace-nowrap" id="header-location-name">📍東京:</span>
+                <span class="font-extrabold text-gray-900 whitespace-nowrap" id="header-temp">29.5℃</span>
+                <span class="text-gray-500 whitespace-nowrap">湿</span>
+                <span class="font-bold text-gray-700 whitespace-nowrap" id="header-humidity">65%</span>
+                <span id="header-risk-label" class="text-gray-600 hidden sm:inline whitespace-nowrap">熱中症リスク:</span>
+                <span id="header-risk-level" class="bg-amber-500 text-white px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap">警戒</span>
+                <button type="button" onclick="toggleLocationModal(true)" class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-2 py-0.5 rounded-lg text-[11px] font-bold transition shadow-2xs whitespace-nowrap">
+                    変更
+                </button>
+            </div>
+
+            <!-- 右上アクション群（曜日時間割設定・情報Ⅰ技術解説） -->
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="toggleScheduleModal(true)" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition flex items-center border border-emerald-200 shadow-sm whitespace-nowrap">
+                    <i class="fa-solid fa-calendar-days mr-1.5"></i>曜日予定設定
+                </button>
+                <button type="button" onclick="toggleTechModal(true)" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition flex items-center border border-indigo-200 shadow-sm whitespace-nowrap">
+                    <i class="fa-solid fa-code mr-1.5"></i>情報Ⅰ技術解説
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= 2. メインコンテンツ領域 (タブ切替) ================= -->
+    <main id="pokenavi-main" class="flex-1 max-w-4xl w-full mx-auto bg-white shadow-xl flex flex-col overflow-hidden relative">
+
+        <!-- ナビゲーションタブバー -->
+        <div class="bg-gray-100 p-1.5 flex border-b border-gray-200 text-xs md:text-sm font-bold text-gray-600">
+            <button type="button" id="tab-chat-btn" onclick="switchTab('chat')" class="flex-1 py-2 rounded-xl text-center transition flex items-center justify-center space-x-2 bg-white text-brand-700 shadow-sm whitespace-nowrap">
+                <i class="fa-solid fa-comments"></i>
+                <span>体調チェック (対話)</span>
+            </button>
+            <button type="button" id="tab-log-btn" onclick="switchTab('log')" class="flex-1 py-2 rounded-xl text-center transition flex items-center justify-center space-x-2 hover:bg-white/60 whitespace-nowrap">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>体調ログ・履歴</span>
+            </button>
+            <button type="button" id="tab-env-btn" onclick="switchTab('env')" class="flex-1 py-2 rounded-xl text-center transition flex items-center justify-center space-x-2 hover:bg-white/60 whitespace-nowrap">
+                <i class="fa-solid fa-cloud-sun"></i>
+                <span>天気・環境シミュレーター</span>
+            </button>
+        </div>
+
+        <!-- ================= タブ1: メッセージアプリ風 チャットUI画面 ================= -->
+        <section id="view-chat" class="flex-1 flex flex-col justify-between overflow-hidden bg-chat-bg">
+
+            <!-- 気象アラートインフォバー（チャット上部） -->
+            <div id="chat-weather-bar" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-2 text-xs flex flex-wrap justify-between items-center gap-1 shadow-inner">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-sun"></i>
+                    <span class="font-bold" id="chat-bar-weather-text">今日の環境: 晴れ 29.5℃ / 湿度 65%</span>
+                </div>
+                <div class="font-bold flex items-center space-x-1 whitespace-nowrap">
+                    <span>推定WBGT: <strong id="chat-bar-wbgt">26.2℃</strong></span>
+                    <span class="bg-amber-400 text-gray-900 px-1.5 py-0.5 rounded text-[10px] ml-1 font-extrabold" id="chat-bar-risk">警戒</span>
+                </div>
+            </div>
+
+            <!-- 今日のチェック完了リマインダー表示（画面内通知） -->
+            <div id="daily-reminder-bar" class="mx-4 mt-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-3 py-1.5 text-[11px] flex items-center justify-between gap-2">
+                <div class="flex items-center space-x-1.5">
+                    <i class="fa-solid fa-bell text-amber-600"></i>
+                    <span id="daily-reminder-text" class="font-bold">今日のチェックはまだです（下のボタンか入力欄から回答できます）</span>
+                </div>
+                <span id="daily-reminder-badge" class="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-bold whitespace-nowrap">未完了</span>
+            </div>
+
+            <!-- 初期環境のまま利用する際の気象環境確認・設定促しバナー -->
+            <div id="env-setup-prompt-bar" class="mx-4 mt-1.5 bg-sky-50 border border-sky-200 text-sky-950 rounded-xl px-3 py-1.5 text-[11px] flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center space-x-1.5">
+                    <i class="fa-solid fa-location-dot text-sky-600"></i>
+                    <span id="env-setup-prompt-text">現在は「東京」の天気が設定されています。あなたの住んでいる地域を設定すると、今日の気温にぴったりの持ち物を提案できます！</span>
+                </div>
+                <div class="flex items-center space-x-1.5">
+                    <button type="button" onclick="toggleLocationModal(true)" class="bg-white hover:bg-sky-100 text-sky-800 border border-sky-300 px-2 py-0.5 rounded-lg text-[10px] font-bold transition whitespace-nowrap">
+                        地域を選ぶ
+                    </button>
+                    <button type="button" onclick="switchTab('env')" class="bg-sky-600 hover:bg-sky-700 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold transition whitespace-nowrap">
+                        気温・季節を設定
+                    </button>
+                </div>
+            </div>
+
+            <!-- チャットメッセージ表示領域 -->
+            <div id="chat-box" class="flex-1 p-4 pb-12 overflow-y-auto space-y-4">
+                <!-- JSで動的に吹き出しメッセージが生成されます -->
+            </div>
+
+            <!-- 注意が必要な症状（めまい・吐き気・強いだるさなど）のクイック相談案内＆保健室提示メモボタン -->
+            <div id="urgent-symptom-banner" class="hidden mx-4 mb-1.5 bg-rose-50 border border-rose-300 text-rose-950 rounded-xl px-3 py-2 text-[11px] shadow-xs space-y-1.5">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="font-extrabold text-rose-800 flex items-center">
+                        <i class="fa-solid fa-heart-pulse mr-1 text-rose-600"></i>
+                        <span>注意が必要なサインがあります</span>
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="openNurseCardModal()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg transition whitespace-nowrap">
+                            <i class="fa-solid fa-notes-medical mr-1"></i>保健室・先生に見せるメモ
+                        </button>
+                        <button type="button" onclick="hideUrgentBanner()" class="text-rose-500 hover:text-rose-700 font-bold text-[11px] px-1">
+                            閉じる
+                        </button>
+                    </div>
+                </div>
+                <p class="leading-snug">
+                    めまい・吐き気・強いだるさなどがあるときは、無理をせず涼しい場所で休み、すぐに<strong>先生・保護者・保健室</strong>へ伝えてください。
+                </p>
+            </div>
+
+            <!-- 入力中アニメーション（AIタイピング表示） -->
+            <div id="typing-indicator" class="px-4 py-2 flex items-center space-x-2 hidden">
+                <div class="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs">
+                    <i class="fa-solid fa-user-doctor"></i>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-2xl px-4 py-2 flex items-center space-x-1.5 shadow-sm">
+                    <div class="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div>
+                    <div class="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div>
+                    <div class="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div>
+                    <span class="text-[11px] text-gray-500 ml-1">環境と体調からコンディションを整理中...</span>
+                </div>
+            </div>
+
+            <!-- チャット下部: クイック入力ボタン ＆ フリーメッセージ送信フォーム -->
+            <div class="bg-white p-2.5 border-t border-gray-200 space-y-1.5">
+                <!-- 医療・安全に関する簡潔な案内 -->
+                <div class="text-[10px] text-gray-500 bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 flex items-center justify-between">
+                    <span>※医療診断ではありません。つらいときは無理せず先生・保護者・保健室へご相談ください。</span>
+                </div>
+
+                <!-- クイック返信ボタン群 (ワンタップ回答常設) -->
+                <div id="quick-options" class="flex flex-wrap gap-2 justify-start min-h-[38px] items-center">
+                    <!-- JSで選択肢ボタンを表示 -->
+                </div>
+
+                <!-- 自由記述入力フォーム -->
+                <form id="chat-form" onsubmit="handleUserSubmit(event)" class="flex items-center space-x-2">
+                    <input type="text" id="user-input" placeholder="上のボタンをタップするか、今の体調を一言で入力してください（例：頭が痛い、眠い）"
+                           class="flex-1 border border-gray-300 rounded-2xl px-4 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none transition">
+                    <button type="submit" id="chat-submit-btn" class="bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-bold w-10 h-10 rounded-2xl flex items-center justify-center shadow-md transition disabled:opacity-50">
+                        <i class="fa-solid fa-paper-plane text-sm"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ================= タブ2: 過去ログ ＆ 可視化グラフ画面 ================= -->
+        <section id="view-log" class="hidden flex-1 p-4 md:p-6 overflow-y-auto space-y-6 bg-gray-50">
+            <!-- 上部サマリーカード -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center space-x-3">
+                    <div class="w-12 h-12 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center text-xl font-bold shrink-0">
+                        📅
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 font-bold">記録日数</div>
+                        <div class="text-xl font-extrabold text-gray-800 whitespace-nowrap" id="summary-days-count">0 日</div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center space-x-3">
+                    <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xl font-bold shrink-0">
+                        😴
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 font-bold">平均睡眠時間</div>
+                        <div class="text-xl font-extrabold text-gray-800 whitespace-nowrap" id="summary-avg-sleep">-- 時間</div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center space-x-3">
+                    <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl font-bold shrink-0">
+                        ⚡
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 font-bold">6時間以上睡眠の割合</div>
+                        <div class="text-xl font-extrabold text-gray-800 whitespace-nowrap" id="summary-health-rate">--%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 傾向サマリー（睡眠不足・症状の振り返り） -->
+            <div id="log-insight-box" class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm text-xs text-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div class="font-bold text-slate-800">
+                    <i class="fa-solid fa-magnifying-glass-chart text-brand-600 mr-1.5"></i>
+                    <span>記録の振り返り：</span>
+                    <span id="log-insight-text" class="font-normal text-gray-600">データを集計中です。</span>
+                </div>
+                <span class="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-bold self-start sm:self-auto whitespace-nowrap">
+                    ブラウザに自動保存中
+                </span>
+            </div>
+
+            <!-- Chart.js 相関グラフ -->
+            <div class="bg-white p-4 md:p-6 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <h3 class="font-bold text-gray-800 text-sm md:text-base flex items-center">
+                        <i class="fa-solid fa-chart-line text-brand-600 mr-2"></i>体調ログと環境リスクの相関グラフ
+                    </h3>
+                    <span id="correlation-summary-badge" class="text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full font-bold">
+                        睡眠×WBGT相関を計算中
+                    </span>
+                </div>
+                <p class="text-[11px] text-gray-500">日ごとの「睡眠時間」「推定WBGT」「体調スコア（良好=3 / 要注意=2 / 症状あり=1）」の推移と相関を可視化しています。</p>
+                <div class="h-64 w-full relative">
+                    <canvas id="healthChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 履歴テーブル -->
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden space-y-3 p-4">
+                <div class="flex flex-wrap justify-between items-center gap-2 px-1">
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-sm md:text-base flex items-center">
+                            <i class="fa-solid fa-list-check text-brand-600 mr-2"></i>これまでの体調・環境きろく一覧
+                        </h3>
+                        <p class="text-[11px] text-gray-500">ブラウザ内に保存され、再読み込みしても残ります。</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <select id="log-period-select" onchange="renderLogTable()" aria-label="記録の期間切り替え" class="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-xl font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <option value="all">全期間</option>
+                            <option value="recent7">直近7件</option>
+                        </select>
+                        <select id="log-filter-select" onchange="renderLogTable()" aria-label="履歴の絞り込み" class="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-xl font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <option value="all">すべて表示</option>
+                            <option value="symptom">気になる症状ありのみ</option>
+                            <option value="short_sleep">睡眠6時間未満のみ</option>
+                            <option value="high_risk">警戒・厳重警戒・危険のみ</option>
+                        </select>
+                        <button type="button" onclick="resetSampleLogs()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-bold border border-slate-300 transition whitespace-nowrap">
+                            <i class="fa-solid fa-rotate-left mr-1"></i>初期例に戻す
+                        </button>
+                        <button type="button" onclick="loadWeeklyDemoLogs()" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 px-3 py-1.5 rounded-xl font-bold border border-amber-300 transition whitespace-nowrap">
+                            <i class="fa-solid fa-calendar-week mr-1"></i>1週間分デモを読み込む
+                        </button>
+                        <button type="button" onclick="clearAllLogs()" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-1.5 rounded-xl font-bold border border-rose-200 transition whitespace-nowrap">
+                            <i class="fa-solid fa-trash-can mr-1"></i>履歴をすべて消去
+                        </button>
+                        <button type="button" onclick="exportJSON()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl font-bold border border-indigo-200 transition whitespace-nowrap">
+                            <i class="fa-solid fa-download mr-1"></i>記録データを保存
+                        </button>
+                        <button type="button" onclick="exportCSV()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl font-bold border border-emerald-200 transition whitespace-nowrap">
+                            <i class="fa-solid fa-file-csv mr-1"></i>表計算用にCSVで保存
+                        </button>
+                    </div>
+                </div>
+                <div class="px-1 text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200/80 rounded-xl py-1.5 px-3">
+                    ※記録はこの端末のブラウザ内に保存されます。共有端末を使う場合は、必要に応じて「履歴をすべて消去」をご利用ください。
+                </div>
+
+                <!-- レスポンシブ横スクロール対応＆折り返し防止テーブル -->
+                <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                    <table class="w-full min-w-[680px] text-left text-xs text-gray-600">
+                        <thead class="bg-gray-100 text-gray-700 font-bold border-b border-gray-200">
+                            <tr>
+                                <th class="px-3.5 py-3 whitespace-nowrap">日時</th>
+                                <th class="px-3.5 py-3 whitespace-nowrap">気分・体調</th>
+                                <th class="px-3.5 py-3 whitespace-nowrap">睡眠時間</th>
+                                <th class="px-3.5 py-3 whitespace-nowrap">予定</th>
+                                <th class="px-3.5 py-3 whitespace-nowrap">気温 / WBGT</th>
+                                <th class="px-3.5 py-3 whitespace-nowrap">環境リスク</th>
+                                <th class="px-3.5 py-3 text-center whitespace-nowrap">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-table-body" class="divide-y divide-gray-100">
+                            <!-- JSで履歴を行生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= タブ3: 天気・環境リスクシミュレーター ================= -->
+        <section id="view-env" class="hidden flex-1 p-4 md:p-6 overflow-y-auto bg-gray-50 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h2 class="text-lg font-bold text-gray-800">天気・環境シミュレーター</h2>
+                        <span class="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-bold">環境シミュレーション</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-0.5">「明日の遠足」や「真夏の部活」など、気温や湿度を動かして熱中症・寒暖差リスクを事前にチェックできます。普段使う地域の選択は、上部の「変更」ボタンから行えます。</p>
+                </div>
+            </div>
+
+            <!-- テストシナリオのワンタップ再現ボタン -->
+            <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-2">
+                <div class="text-xs font-bold text-gray-700 flex items-center">
+                    <i class="fa-solid fa-flask text-indigo-600 mr-1.5"></i>
+                    <span>よくある場面をワンタップで再現</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" onclick="applyEnvPreset(33.5, 72, 'sunny', '真夏の運動部テスト')" class="text-xs bg-red-50 hover:bg-red-100 text-red-800 border border-red-200 px-3 py-1.5 rounded-xl font-bold transition whitespace-nowrap">
+                        ☀️ 真夏の運動部（33.5℃・72%）
+                    </button>
+                    <button type="button" onclick="applyEnvPreset(28.5, 78, 'cloudy', '蒸し暑い通学テスト')" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-3 py-1.5 rounded-xl font-bold transition whitespace-nowrap">
+                        ⛅ 蒸し暑い通学（28.5℃・78%）
+                    </button>
+                    <button type="button" onclick="applyEnvPreset(21.0, 60, 'rain', '雨の日の通学テスト')" class="text-xs bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 px-3 py-1.5 rounded-xl font-bold transition whitespace-nowrap">
+                        🌧️ 雨の日の通学（21.0℃・60%）
+                    </button>
+                    <button type="button" onclick="applyEnvPreset(-3.0, 45, 'cloudy', '冬の朝の防寒テスト')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1.5 rounded-xl font-bold transition whitespace-nowrap">
+                        ❄️ 冬の朝（-3.0℃・45%）
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- パラメータ入力フォーム -->
+                <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-5">
+                    <h3 class="font-bold text-gray-800 text-sm border-b pb-2 flex items-center">
+                        <i class="fa-solid fa-sliders text-brand-600 mr-2"></i>気温・湿度・天気のテスト入力
+                    </h3>
+
+                    <!-- 実験用の場所検索 ＆ GPS取得 -->
+                    <div>
+                        <label for="input-location-search" class="block text-xs font-bold text-gray-700 mb-1">📍 場所・地域検索（地名予測 ＆ 気象データ連携）</label>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input type="text" id="input-location-search" onkeydown="if(event.key==='Enter'){event.preventDefault();searchLocationByName();}" placeholder="駅名・市町村名を入力（例：東京駅）"
+                                class="w-full sm:flex-1 min-w-0 border border-gray-300 rounded-xl px-3 py-2 text-xs font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <div class="flex gap-2 shrink-0">
+                                <button type="button" id="btn-location-search" onclick="searchLocationByName()" class="flex-1 sm:flex-none whitespace-nowrap bg-brand-600 hover:bg-brand-700 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center justify-center space-x-1 disabled:opacity-50">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <span>場所検索</span>
+                                </button>
+                                <button type="button" onclick="requestGPSWithConsent()" title="現在地を取得" class="flex-1 sm:flex-none whitespace-nowrap bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center justify-center space-x-1">
+                                    <i class="fa-solid fa-location-crosshairs"></i>
+                                    <span>GPS</span>
+                                </button>
+                            </div>
+                        </div>
+                        <p id="location-search-msg" class="text-[11px] text-gray-500 mt-1">※取得した場所の気温・湿度をテスト条件に反映します（上部の表示も更新されます）</p>
+
+                        <!-- GPS利用確認ダイアログ（画面内モーダル/パネル） -->
+                        <div id="gps-consent-box" class="hidden mt-2 p-3 bg-emerald-50 border border-emerald-300 rounded-xl space-y-2 text-xs">
+                            <div class="font-bold text-emerald-900 flex items-center">
+                                <i class="fa-solid fa-shield-halved mr-1.5 text-emerald-700"></i>
+                                <span>位置情報の利用について</span>
+                            </div>
+                            <p class="text-[11px] text-emerald-950 leading-relaxed">
+                                現在地の気象データを取得するために位置情報を使用します（位置情報は外部サーバーに保存されません）。
+                            </p>
+                            <div class="flex items-center justify-end gap-2">
+                                <button type="button" onclick="cancelGPSConsent()" class="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 px-3 py-1 rounded-lg text-[11px] font-bold transition">
+                                    キャンセル
+                                </button>
+                                <button type="button" onclick="confirmAndExecuteGPS()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-lg text-[11px] font-bold transition">
+                                    同意して取得する
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 複数候補・同名地名切り替えエリア -->
+                        <div id="location-candidates-box" class="hidden mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                            <div id="location-candidates-reason" class="text-[11px] font-bold text-indigo-700 flex items-center">
+                                <i class="fa-solid fa-map-pin mr-1.5"></i><span>候補地域（別の地域に切り替える場合はタップ）</span>
+                            </div>
+                            <div id="location-candidates-list" class="flex flex-wrap gap-1.5"></div>
+                        </div>
+                    </div>
+
+                    <!-- 気温スライダー -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1">
+                            <label for="slider-temp" class="text-gray-700">気温 (℃)</label>
+                            <span id="val-temp" class="text-brand-600 text-sm font-extrabold">29.5 ℃</span>
+                        </div>
+                        <input type="range" id="slider-temp" min="-10" max="50" value="29.5" step="0.5"
+                            oninput="updateSimulatedEnvironment()" class="w-full accent-brand-600 cursor-pointer">
+                    </div>
+
+                    <!-- 湿度スライダー -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1">
+                            <label for="slider-humidity" class="text-gray-700">湿度 (%)</label>
+                            <span id="val-humidity" class="text-brand-600 text-sm font-extrabold">65 %</span>
+                        </div>
+                        <input type="range" id="slider-humidity" min="20" max="100" value="65" step="1"
+                            oninput="updateSimulatedEnvironment()" class="w-full accent-brand-600 cursor-pointer">
+                    </div>
+
+                    <!-- 天気セレクト -->
+                    <div>
+                        <label for="select-weather" class="block text-xs font-bold text-gray-700 mb-1">日差し・天候条件</label>
+                        <select id="select-weather" onchange="updateSimulatedEnvironment()" class="w-full border border-gray-300 rounded-xl p-2.5 text-xs bg-gray-50 font-bold focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <option value="sunny">快晴 (強い直射日光)</option>
+                            <option value="cloudy" selected>晴れ / 薄くもり (通常の日差し)</option>
+                            <option value="overcast">曇り (日差し弱)</option>
+                            <option value="rain">雨 (屋内中心)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- リアルタイム算出結果ディスプレイ -->
+                <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-2xl shadow-md flex flex-col justify-between space-y-4">
+                    <div>
+                        <h3 class="text-base font-bold mt-0.5">シミュレーション結果：環境リスクと暑さ指数（WBGT）</h3>
+                    </div>
+
+                    <div class="text-center py-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm">
+                        <div class="text-xs text-gray-300">推定WBGTの目安（参考値）</div>
+                        <div class="text-4xl font-black text-amber-400 my-1" id="sim-wbgt-val">26.2℃</div>
+                        <div id="sim-risk-badge" class="inline-block px-3 py-1 rounded-full text-xs font-bold text-gray-900 bg-amber-400 mt-1">
+                            警戒 (WBGT 25〜28℃)
+                        </div>
+                    </div>
+
+                    <!-- 情報Ⅰ要素：計算式のリアルタイム可視化ボックス -->
+                    <div class="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
+                        <div class="text-[11px] font-bold text-emerald-300 flex items-center">
+                            <i class="fa-solid fa-square-root-variable mr-1.5"></i>
+                            <span>WBGT推定計算式のリアルタイム表示（情報Ⅰアルゴリズム）</span>
+                        </div>
+                        <div id="sim-formula-live" class="font-mono text-[11px] text-slate-200 bg-black/30 rounded-lg p-2 leading-relaxed break-all">
+                            WBGT = 0.735×29.5 + 0.0374×65 + 0.00292×(29.5×65) - 4.05 + 0.0 = 26.2℃
+                        </div>
+                        <p class="text-[10px] text-slate-300 leading-snug">
+                            気温・湿度・積算項に、日差し補正（快晴 +1.2 / 晴れ ±0.0 / 曇り -0.6 / 雨 -1.2）を加えて算出しています。
+                        </p>
+                    </div>
+
+                    <div class="text-xs text-gray-300 space-y-1 bg-white/5 p-3 rounded-xl border border-white/5">
+                        <div class="font-bold text-emerald-300">【安全行動ガイドライン】</div>
+                        <p id="sim-advice-text" class="leading-relaxed">熱中症の危険が増すため、運動時は定期的に水分・塩分を補給し、休憩を取りましょう。</p>
+                        <p id="sim-boundary-text" class="text-[11px] text-amber-200/90 pt-1 border-t border-white/10">判定の目安：WBGT 21℃以上＝注意 / 25℃以上＝警戒 / 28℃以上＝厳重警戒 / 31℃以上＝危険</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- テスト条件の比較メモ -->
+            <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <div class="text-xs font-bold text-gray-800 flex items-center">
+                        <i class="fa-solid fa-table-columns text-indigo-600 mr-1.5"></i>
+                        <span>条件の比較メモ（試した条件や1日の気温変化を並べて比較）</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="loadDayTimeShiftComparison()" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-3 py-1 rounded-xl font-bold transition whitespace-nowrap">
+                            1日の気温変化を比較
+                        </button>
+                        <button type="button" onclick="saveCurrentTestSnapshot()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1 rounded-xl font-bold transition whitespace-nowrap">
+                            + 今の条件を比較メモに追加
+                        </button>
+                        <button type="button" onclick="clearTestSnapshots()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-xl font-bold transition whitespace-nowrap">
+                            クリア
+                        </button>
+                    </div>
+                </div>
+                <div id="test-snapshots-list" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                    <!-- JSで比較メモを表示 -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= 3. 「情報Ⅰ技術解説」モーダル ================= -->
+    <div id="tech-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto animate-popIn">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="bg-indigo-100 text-indigo-700 text-xs px-2.5 py-1 rounded-lg font-bold">情報Ⅰ 技術解説</span>
+                    <h3 class="font-extrabold text-gray-900 text-base">システム構成 ＆ アルゴリズム解説</h3>
+                </div>
+                <button type="button" onclick="toggleTechModal(false)" class="text-gray-400 hover:text-gray-600 text-xl font-bold">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs text-gray-700 leading-relaxed">
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-1.5">
+                    <h4 class="font-bold text-indigo-700 text-sm flex items-center"><i class="fa-solid fa-network-wired mr-1.5"></i>1. 情報通信ネットワークと外部Web API連携</h4>
+                    <p>国土地理院ジオコーディングAPIおよびOpen-Meteo気象APIと非同期通信（<code>fetch</code> / <code>async-await</code>）を行い、現在地の気温・相対湿度・日最高/最低気温・天候コードをリアルタイムにJSON形式で取得しています。</p>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-1.5">
+                    <h4 class="font-bold text-emerald-700 text-sm flex items-center"><i class="fa-solid fa-brain mr-1.5"></i>2. 対話制御・条件分岐・フォールバック設計</h4>
+                    <p>環境省の熱中症予防情報におけるWBGT基準（21・25・28・31℃）を参考にした簡易近似式と、入力の妥当性確認・聞き返し・通信失敗時のオフライン判定を組み合わせています。</p>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-1.5">
+                    <h4 class="font-bold text-amber-700 text-sm flex items-center"><i class="fa-solid fa-database mr-1.5"></i>3. 構造化データ管理と可視化</h4>
+                    <p>日々の体調ログおよび月〜金の曜日別時間割プリセットはJSON構造として <code>localStorage</code> に保存され、Chart.jsによる二軸相関グラフの描画、JSON/CSVファイル保存に対応しています。</p>
+                </div>
+
+                <div class="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-200 space-y-1.5">
+                    <h4 class="font-bold text-indigo-800 text-sm flex items-center"><i class="fa-solid fa-compass-drafting mr-1.5"></i>4. 探究の振り返り・調査根拠・検証メモ</h4>
+                    <ul class="list-disc list-inside space-y-1 text-gray-700">
+                        <li><strong>調査・設計の根拠：</strong>WBGTは公的実測値ではなく気温・湿度・日差しからの「参考値」として扱い、睡眠時間6時間未満の注意喚起は中高生の生活リズムと疲労蓄積の仮説をもとに設定しています。</li>
+                        <li><strong>ユーザーテスト検証と改善の記録：</strong>高校生モニターによる試用検証を行い、「朝の忙しい時間にスクロールが多い」という意見を受けて結果カード最上部に「今日の持ち物（3点）」と「最重要アクション」を配置し、詳細解説を折りたたみ式に改善しました。また、「専門用語が分かりにくい」という声をもとに画面上の表現を親しみやすい日本語へ統一し、曜日別予定プリセットと保健室提示用メモを追加しました。</li>
+                        <li><strong>システムテストと安定化：</strong>再読み込み時の履歴保持（<code>localStorage</code>）、未定義変数・モーダル閉じボタンの修正、履歴0件時のグラフ更新ガード、あいまい入力への聞き返し、症状時のクイック相談案内、二軸相関グラフとCSV保存を段階的に検証・改善しました。</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-100 p-3.5 rounded-2xl border border-slate-200 text-[11px] text-slate-700 space-y-1">
+                    <div class="font-bold text-slate-900">外部API・ライブラリの出典・ライセンス準拠表記</div>
+                    <p>使用データ・ライブラリ：気象データ（Open-Meteo API／CC BY 4.0準拠）、位置情報・住所検索（国土地理院API／国土地理院コンテンツ利用規約準拠）、グラフ描画（Chart.js／MIT License）。取得した位置情報や体調ログは外部サーバーへ送信・保存せず、端末内ブラウザのみで処理します。</p>
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button type="button" onclick="toggleTechModal(false)" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-xl text-xs transition">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 4. 地域選択モーダル ================= -->
+    <div id="location-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-popIn">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">📍</span>
+                    <h3 class="font-extrabold text-gray-900 text-base">普段使う対象地域の選択</h3>
+                </div>
+                <button type="button" onclick="toggleLocationModal(false)" class="text-gray-400 hover:text-gray-600 text-xl font-bold">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-gray-500">普段チェックする都市を選ぶと、最新の気温・湿度を取得します。細かい条件テストは「天気・環境シミュレーター」タブで行えます。</p>
+
+            <!-- 都市ボタンリスト -->
+            <div class="grid grid-cols-3 gap-2 py-2" id="city-buttons">
+                <!-- JSで都市ボタンを生成 -->
+            </div>
+
+            <div id="api-loading-text" class="text-center text-xs text-brand-600 font-bold hidden py-1">
+                <i class="fa-solid fa-spinner fa-spin mr-1"></i> 気象データを取得中...
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button type="button" onclick="toggleLocationModal(false)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-4 py-2 rounded-xl text-xs transition">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 5. 曜日別・時間割プリセット設定モーダル ================= -->
+    <div id="schedule-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-popIn">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">🗓️</span>
+                    <h3 class="font-extrabold text-gray-900 text-base">月〜金の曜日別・時間割プリセット設定</h3>
+                </div>
+                <button type="button" onclick="toggleScheduleModal(false)" class="text-gray-400 hover:text-gray-600 text-xl font-bold">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-gray-600 leading-relaxed">
+                曜日ごとの主な予定を登録しておくと、朝の対話チェックでその曜日の予定をワンタップで素早く確定できます。
+            </p>
+
+            <div id="weekly-schedule-rows" class="space-y-2.5">
+                <!-- JSで月〜金のセレクトを生成 -->
+            </div>
+
+            <div class="pt-2 flex justify-end gap-2">
+                <button type="button" onclick="toggleScheduleModal(false)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-4 py-2 rounded-xl text-xs transition">
+                    閉じる
+                </button>
+                <button type="button" onclick="saveWeeklySchedule()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-5 py-2 rounded-xl text-xs transition">
+                    保存する
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 6. 「保健室・先生に見せるメモ」モーダル ================= -->
+    <div id="nurse-card-modal" class="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border-2 border-rose-200 animate-popIn">
+            <div class="flex justify-between items-center border-b border-rose-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-notes-medical"></i>
+                    </span>
+                    <h3 class="font-black text-gray-900 text-base">保健室・先生に見せるメモ</h3>
+                </div>
+                <button type="button" onclick="closeNurseCardModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="nurse-card-content" class="space-y-3 text-sm text-gray-800">
+                <!-- JSで直近3日の睡眠・今日の症状・現在の気温/湿度を表示 -->
+            </div>
+
+            <p class="text-[11px] text-rose-800 bg-rose-50 p-2.5 rounded-xl border border-rose-200 leading-relaxed">
+                無理をせず涼しい場所で休み、先生・保護者・保健室の先生にこの画面を見せて相談してください。
+            </p>
+
+            <div class="pt-1 flex justify-end">
+                <button type="button" onclick="closeNurseCardModal()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-5 py-2 rounded-xl text-xs transition">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* -------------------------------------------------------------
+           グローバル状態・観測地点マスタ・曜日別予定の定義
+        ------------------------------------------------------------- */
+        const CITIES = [
+            { name: '札幌', lat: 43.0618, lon: 141.3545 },
+            { name: '仙台', lat: 38.2682, lon: 140.8694 },
+            { name: '東京', lat: 35.6895, lon: 139.6917 },
+            { name: '名古屋', lat: 35.1815, lon: 136.9066 },
+            { name: '大阪', lat: 34.6937, lon: 135.5023 },
+            { name: '岡山', lat: 34.6617, lon: 133.9350 },
+            { name: '広島', lat: 34.3853, lon: 132.4553 },
+            { name: '福岡', lat: 33.5902, lon: 130.4017 },
+            { name: '那覇', lat: 26.2124, lon: 127.6809 }
+        ];
+
+        const SCHEDULE_OPTIONS = [
+            { label: '教室の授業', value: '今日は教室での授業が中心です' },
+            { label: '体育あり', value: '今日は体育の授業があります' },
+            { label: '屋外の部活', value: '今日は屋外での部活動があります' },
+            { label: '屋内の部活', value: '今日は屋内での部活動があります' }
+        ];
+
+        const SCHEDULE_STORAGE_KEY = 'asakatsu_weekly_schedule_v1';
+
+        function loadWeeklySchedule() {
+            const defaults = {
+                1: '今日は教室での授業が中心です',
+                2: '今日は体育の授業があります',
+                3: '今日は教室での授業が中心です',
+                4: '今日は屋外での部活動があります',
+                5: '今日は教室での授業が中心です'
+            };
+            try {
+                const raw = localStorage.getItem(SCHEDULE_STORAGE_KEY);
+                if (!raw) return defaults;
+                const parsed = JSON.parse(raw);
+                return { ...defaults, ...parsed };
+            } catch (e) {
+                return defaults;
+            }
+        }
+
+        let weeklySchedule = loadWeeklySchedule();
+
+        let currentEnv = {
+            locationName: '東京',
+            temp: '29.5',
+            humidity: 65,
+            weather: 'cloudy',
+            wbgt: '26.2',
+            riskLevel: '警戒',
+            dailyMaxTemp: null,
+            dailyMinTemp: null,
+            isInitialDefault: true
+        };
+
+        let chatStep = 0;
+        let conversationHistory = [];
+        let tempUserData = { condition: '', conditionText: '', sleepHours: 7, activity: '', activityText: '' };
+        let isAiProcessing = false;
+        let testSnapshots = [
+            { label: '真夏の運動部', temp: '33.5', humidity: 72, wbgt: '31.4', riskLevel: '危険' },
+            { label: '蒸し暑い通学', temp: '28.5', humidity: 78, wbgt: '26.4', riskLevel: '警戒' },
+            { label: '冬の朝', temp: '-3.0', humidity: 45, wbgt: '-4.2', riskLevel: 'ほぼ安全' }
+        ];
+
+        const STORAGE_KEY = 'asakatsu_conditioner_logs_v1';
+
+        function createRecentSampleLogs() {
+            const now = new Date();
+            const formatDayAgo = (daysAgo, hhmm) => {
+                const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd} ${hhmm}`;
+            };
+
+            return [
+                {
+                    id: 101,
+                    date: formatDayAgo(2, '07:45'),
+                    conditionText: '体調良好（異常なし）',
+                    sleepHours: 8,
+                    activityText: '教室での授業中心',
+                    temp: 18.5,
+                    wbgt: 15.2,
+                    riskLevel: 'ほぼ安全',
+                    advice: '体調・環境ともに安定しています。こまめな水分補給と体温調節を心がけましょう。'
+                },
+                {
+                    id: 102,
+                    date: formatDayAgo(1, '07:30'),
+                    conditionText: '睡眠不足による倦怠感',
+                    sleepHours: 5.5,
+                    activityText: '屋外グラウンドでの部活動',
+                    temp: 16.0,
+                    wbgt: 13.4,
+                    riskLevel: 'ほぼ安全',
+                    advice: '睡眠不足により体温調節や集中力が低下しやすくなっています。無理のないペースで休息と水分補給をとってください。'
+                }
+            ];
+        }
+
+        function createWeeklyDemoLogs() {
+            const now = new Date();
+            const formatDayAgo = (daysAgo, hhmm) => {
+                const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd} ${hhmm}`;
+            };
+
+            const presets = [
+                { daysAgo: 6, hhmm: '07:20', conditionText: '体調良好（異常なし）', sleepHours: 7.5, activityText: '教室での授業が中心です', temp: 24.0, wbgt: 21.8, riskLevel: '注意' },
+                { daysAgo: 5, hhmm: '07:15', conditionText: '少し眠気や体のだるさがあります', sleepHours: 5.5, activityText: '今日は屋外での部活動があります', temp: 29.5, wbgt: 26.5, riskLevel: '警戒' },
+                { daysAgo: 4, hhmm: '07:35', conditionText: '体調良好（異常なし）', sleepHours: 8.0, activityText: '今日は体育の授業があります', temp: 27.0, wbgt: 24.2, riskLevel: '注意' },
+                { daysAgo: 3, hhmm: '07:10', conditionText: '頭痛やのどの痛みなど気になる症状があります', sleepHours: 5.0, activityText: '教室での授業が中心です', temp: 14.5, wbgt: 11.8, riskLevel: 'ほぼ安全' },
+                { daysAgo: 2, hhmm: '07:25', conditionText: '体調良好（異常なし）', sleepHours: 7.0, activityText: '今日は屋外での部活動があります', temp: 31.0, wbgt: 28.4, riskLevel: '厳重警戒' },
+                { daysAgo: 1, hhmm: '07:30', conditionText: '少し眠気や体のだるさがあります', sleepHours: 6.0, activityText: '今日は体育の授業があります', temp: 12.0, wbgt: 9.5, riskLevel: 'ほぼ安全' },
+                { daysAgo: 0, hhmm: '07:20', conditionText: '体調良好（異常なし）', sleepHours: 7.5, activityText: '今日は屋外での部活動があります', temp: 26.5, wbgt: 23.6, riskLevel: '注意' }
+            ];
+
+            return presets.map((p, idx) => ({
+                id: 500 + idx,
+                date: formatDayAgo(p.daysAgo, p.hhmm),
+                conditionText: p.conditionText,
+                sleepHours: p.sleepHours,
+                activityText: p.activityText,
+                temp: p.temp,
+                wbgt: p.wbgt,
+                riskLevel: p.riskLevel,
+                advice: '週間デモデータです。睡眠時間・WBGT・体調スコアの推移を確認できます。'
+            }));
+        }
+
+        function loadWeeklyDemoLogs() {
+            logsDatabase = createWeeklyDemoLogs();
+            saveLogsToStorage();
+            renderLogTable();
+            updateChartData();
+            updateDailyReminder();
+        }
+
+        const DEFAULT_LOGS = createRecentSampleLogs();
+
+        function loadLogsFromStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return [...DEFAULT_LOGS];
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [...DEFAULT_LOGS];
+            } catch (e) {
+                return [...DEFAULT_LOGS];
+            }
+        }
+
+        function saveLogsToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(logsDatabase));
+            } catch (e) {
+                console.warn('保存に失敗:', e);
+            }
+        }
+
+        let logsDatabase = loadLogsFromStorage();
+        let healthChartInstance = null;
+
+        /* -------------------------------------------------------------
+           初期化処理 (Window Onload)
+        ------------------------------------------------------------- */
+        window.onload = function () {
+            renderCityButtons();
+            renderWeeklyScheduleForm();
+            calculateWBGT();
+            syncSimulatorInputs();
+            renderTestSnapshots();
+            updateEnvSetupPrompt();
+            updateDailyReminder();
+            initChatFlow();
+            renderLogTable();
+            initChart();
+            fetchCityWeather(CITIES[2], false, true);
+        };
+
+        /* -------------------------------------------------------------
+           曜日別・時間割プリセット設定制御
+        ------------------------------------------------------------- */
+        function toggleScheduleModal(forceState) {
+            const modal = document.getElementById('schedule-modal');
+            if (!modal) return;
+            if (typeof forceState === 'boolean') {
+                modal.classList.toggle('hidden', !forceState);
+            } else {
+                modal.classList.toggle('hidden');
+            }
+            if (!modal.classList.contains('hidden')) {
+                renderWeeklyScheduleForm();
+            }
+        }
+
+        function renderWeeklyScheduleForm() {
+            const container = document.getElementById('weekly-schedule-rows');
+            if (!container) return;
+            const days = [
+                { num: 1, label: '月曜日' },
+                { num: 2, label: '火曜日' },
+                { num: 3, label: '水曜日' },
+                { num: 4, label: '木曜日' },
+                { num: 5, label: '金曜日' }
+            ];
+
+            container.innerHTML = days.map(d => {
+                const currentVal = weeklySchedule[d.num] || SCHEDULE_OPTIONS[0].value;
+                return `
+                    <div class="flex items-center justify-between gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <span class="text-xs font-bold text-slate-800 w-16 shrink-0">${d.label}</span>
+                        <select id="schedule-select-day-${d.num}" class="flex-1 bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            ${SCHEDULE_OPTIONS.map(opt => `
+                                <option value="${escapeHTML(opt.value)}" ${opt.value === currentVal ? 'selected' : ''}>${escapeHTML(opt.label)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function saveWeeklySchedule() {
+            [1, 2, 3, 4, 5].forEach(dayNum => {
+                const sel = document.getElementById(`schedule-select-day-${dayNum}`);
+                if (sel) {
+                    weeklySchedule[dayNum] = sel.value;
+                }
+            });
+            try {
+                localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(weeklySchedule));
+            } catch (e) {
+                console.warn('時間割保存エラー:', e);
+            }
+            toggleScheduleModal(false);
+            if (chatStep === 2) {
+                restoreQuickOptionsForCurrentStep();
+            }
+            appendSystemNotice('🗓️ 曜日別の予定プリセットを保存しました。朝の質問3で自動提案されます。');
+        }
+
+        function getTodayScheduledOption() {
+            const day = new Date().getDay();
+            const targetDay = (day >= 1 && day <= 5) ? day : 1;
+            const val = weeklySchedule[targetDay] || SCHEDULE_OPTIONS[0].value;
+            const matched = SCHEDULE_OPTIONS.find(o => o.value === val);
+            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+            const shortLabel = matched ? matched.label : '教室の授業';
+            return {
+                label: `⚡ ${dayNames[day]}曜の予定：${shortLabel}（タップで確定）`,
+                value: val
+            };
+        }
+
+        /* -------------------------------------------------------------
+           保健室・先生に見せるメモ（緊急・体調不良提示用カード）
+        ------------------------------------------------------------- */
+        function openNurseCardModal(customConditionText = '') {
+            const modal = document.getElementById('nurse-card-modal');
+            const content = document.getElementById('nurse-card-content');
+            if (!modal || !content) return;
+
+            const recent3 = logsDatabase.slice(0, 3);
+            const sleepListHTML = recent3.length > 0
+                ? recent3.map(item => `
+                    <li class="flex justify-between text-xs py-1 border-b border-slate-100 last:border-b-0">
+                        <span class="font-mono text-slate-600">${escapeHTML(String(item.date).slice(5))}</span>
+                        <span class="font-bold text-slate-900">${escapeHTML(String(item.sleepHours))}時間</span>
+                    </li>
+                `).join('')
+                : `<li class="text-xs text-slate-500">記録データがありません</li>`;
+
+            const symptomDisplay = customConditionText || tempUserData.conditionText || '気になる体調サインあり';
+
+            content.innerHTML = `
+                <div class="bg-rose-50/80 border border-rose-200 rounded-2xl p-3.5 space-y-1">
+                    <div class="text-[11px] font-bold text-rose-700">今日の体調・症状</div>
+                    <div class="text-base font-black text-rose-950">${escapeHTML(symptomDisplay)}</div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                        <div class="text-[11px] font-bold text-slate-500">現在の気温・湿度</div>
+                        <div class="text-lg font-black text-slate-900 mt-0.5">${escapeHTML(String(currentEnv.temp))}℃ / ${escapeHTML(String(currentEnv.humidity))}%</div>
+                        <div class="text-[10px] text-slate-500">📍${escapeHTML(currentEnv.locationName)}</div>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                        <div class="text-[11px] font-bold text-slate-500">推定WBGT・リスク</div>
+                        <div class="text-lg font-black text-slate-900 mt-0.5">${escapeHTML(String(currentEnv.wbgt))}℃</div>
+                        <div class="text-[11px] font-bold text-amber-700">${escapeHTML(currentEnv.riskLevel)}</div>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-2xl p-3.5 space-y-1.5">
+                    <div class="text-xs font-bold text-slate-800">直近3日間の睡眠時間</div>
+                    <ul class="space-y-0.5">${sleepListHTML}</ul>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeNurseCardModal() {
+            const modal = document.getElementById('nurse-card-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        /* -------------------------------------------------------------
+           環境確認・プリセット・比較メモ制御
+        ------------------------------------------------------------- */
+        function updateEnvSetupPrompt() {
+            const promptBar = document.getElementById('env-setup-prompt-bar');
+            const promptText = document.getElementById('env-setup-prompt-text');
+            if (!promptBar || !promptText) return;
+
+            if (currentEnv.isInitialDefault) {
+                promptBar.classList.remove('hidden');
+                promptText.innerText = `現在は「${currentEnv.locationName}」の天気が設定されています。あなたの住んでいる地域を設定すると、今日の気温にぴったりの持ち物を提案できます！`;
+            } else {
+                promptBar.classList.add('hidden');
+            }
+        }
+
+        function applyEnvPreset(tempVal, humidityVal, weatherKey, labelText) {
+            currentEnv.locationName = labelText;
+            currentEnv.temp = Number(tempVal).toFixed(1);
+            currentEnv.humidity = Math.round(Number(humidityVal));
+            currentEnv.weather = weatherKey;
+            currentEnv.isInitialDefault = false;
+            calculateWBGT();
+            syncSimulatorInputs();
+            updateEnvSetupPrompt();
+            appendSystemNotice(`🧪 テスト条件「${labelText}」を適用しました（${currentEnv.temp}℃ / 湿度${currentEnv.humidity}% / 推定WBGT ${currentEnv.wbgt}℃）`);
+        }
+
+        function saveCurrentTestSnapshot() {
+            testSnapshots.unshift({
+                label: currentEnv.locationName,
+                temp: String(currentEnv.temp),
+                humidity: currentEnv.humidity,
+                wbgt: String(currentEnv.wbgt),
+                riskLevel: currentEnv.riskLevel
+            });
+            testSnapshots = testSnapshots.slice(0, 3);
+            renderTestSnapshots();
+        }
+
+        function loadDayTimeShiftComparison() {
+            const baseTemp = parseFloat(currentEnv.temp);
+            const safeBase = Number.isNaN(baseTemp) ? 28.0 : baseTemp;
+            const rh = Number(currentEnv.humidity) || 65;
+
+            const calcWbgtFor = (tVal, hVal, wKey) => {
+                let w = 0.735 * tVal + 0.0374 * hVal + 0.00292 * (tVal * hVal) - 4.05;
+                if (wKey === 'sunny') w += 1.2;
+                if (wKey === 'overcast') w -= 0.6;
+                if (wKey === 'rain') w -= 1.2;
+                const val = w.toFixed(1);
+                let lvl = 'ほぼ安全';
+                if (w >= 31) lvl = '危険';
+                else if (w >= 28) lvl = '厳重警戒';
+                else if (w >= 25) lvl = '警戒';
+                else if (w >= 21) lvl = '注意';
+                return { wbgt: val, riskLevel: lvl };
+            };
+
+            const morningT = (safeBase - 3.5).toFixed(1);
+            const afternoonT = (safeBase + 3.0).toFixed(1);
+            const afterSchoolT = (safeBase + 0.5).toFixed(1);
+
+            const mRes = calcWbgtFor(parseFloat(morningT), Math.min(100, rh + 5), 'cloudy');
+            const aRes = calcWbgtFor(parseFloat(afternoonT), Math.max(20, rh - 8), 'sunny');
+            const pRes = calcWbgtFor(parseFloat(afterSchoolT), rh, currentEnv.weather || 'cloudy');
+
+            testSnapshots = [
+                { label: '朝（登校時目安）', temp: morningT, humidity: Math.min(100, rh + 5), wbgt: mRes.wbgt, riskLevel: mRes.riskLevel },
+                { label: '昼〜午後（ピーク目安）', temp: afternoonT, humidity: Math.max(20, rh - 8), wbgt: aRes.wbgt, riskLevel: aRes.riskLevel },
+                { label: '放課後（部活目安）', temp: afterSchoolT, humidity: rh, wbgt: pRes.wbgt, riskLevel: pRes.riskLevel }
+            ];
+            renderTestSnapshots();
+        }
+
+        function clearTestSnapshots() {
+            testSnapshots = [];
+            renderTestSnapshots();
+        }
+
+        function renderTestSnapshots() {
+            const container = document.getElementById('test-snapshots-list');
+            if (!container) return;
+            if (testSnapshots.length === 0) {
+                container.innerHTML = `<div class="col-span-3 text-gray-400 text-center py-3 border border-dashed border-gray-200 rounded-xl">「+ 今の条件を比較メモに追加」を押すと、試した条件を並べて比べられます。</div>`;
+                return;
+            }
+            container.innerHTML = testSnapshots.map(snap => `
+                <div class="p-3 rounded-xl border border-gray-200 bg-slate-50 space-y-1">
+                    <div class="flex justify-between items-center font-bold text-gray-800">
+                        <span class="truncate">${escapeHTML(snap.label)}</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] whitespace-nowrap ${getRiskBadgeStyle(snap.riskLevel)}">${escapeHTML(snap.riskLevel)}</span>
+                    </div>
+                    <div class="text-[11px] text-gray-600">気温 ${escapeHTML(snap.temp)}℃ / 湿度 ${escapeHTML(String(snap.humidity))}%</div>
+                    <div class="text-[11px] font-bold text-indigo-700">推定WBGT: ${escapeHTML(snap.wbgt)}℃</div>
+                </div>
+            `).join('');
+        }
+
+        function resetSampleLogs() {
+            logsDatabase = [...DEFAULT_LOGS];
+            saveLogsToStorage();
+            renderLogTable();
+            updateChartData();
+            updateDailyReminder();
+        }
+
+        function clearAllLogs() {
+            logsDatabase = [];
+            saveLogsToStorage();
+            renderLogTable();
+            updateChartData();
+            updateDailyReminder();
+        }
+
+        function deleteLogById(logId) {
+            logsDatabase = logsDatabase.filter(item => item.id !== logId);
+            saveLogsToStorage();
+            renderLogTable();
+            updateChartData();
+            updateDailyReminder();
+        }
+
+        function showUrgentBannerIfNeeded(text) {
+            const banner = document.getElementById('urgent-symptom-banner');
+            if (!banner) return;
+            if (/めまい|立ちくらみ|吐き気|強いだる|ふらふら|息苦|熱|頭痛/.test(text)) {
+                banner.classList.remove('hidden');
+            }
+        }
+
+        function hideUrgentBanner() {
+            const banner = document.getElementById('urgent-symptom-banner');
+            if (banner) banner.classList.add('hidden');
+        }
+
+        /* -------------------------------------------------------------
+           都市選択モーダルボタン生成 ＆ リアルタイム気象API取得
+        ------------------------------------------------------------- */
+        function renderCityButtons() {
+            const container = document.getElementById('city-buttons');
+            if (!container) return;
+            container.innerHTML = '';
+
+            CITIES.forEach(city => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'bg-slate-50 hover:bg-brand-50 text-gray-800 hover:text-brand-700 border border-gray-200 hover:border-brand-300 py-2.5 px-3 rounded-xl text-xs font-bold transition shadow-2xs';
+                btn.innerText = `📍 ${city.name}`;
+                btn.onclick = async () => {
+                    const loading = document.getElementById('api-loading-text');
+                    if (loading) loading.classList.remove('hidden');
+                    const ok = await fetchCityWeather(city, true);
+                    if (loading) loading.classList.add('hidden');
+                    if (ok) {
+                        toggleLocationModal(false);
+                    }
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function updateDailyReminder() {
+            const textEl = document.getElementById('daily-reminder-text');
+            const badgeEl = document.getElementById('daily-reminder-badge');
+            const barEl = document.getElementById('daily-reminder-bar');
+            if (!textEl || !badgeEl) return;
+
+            const now = new Date();
+            const todayPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const doneToday = Array.isArray(logsDatabase) && logsDatabase.some(item => String(item.date || '').startsWith(todayPrefix));
+
+            if (doneToday) {
+                textEl.innerText = '今日のチェックは完了しています（履歴タブでグラフ・記録を確認できます）';
+                badgeEl.innerText = '完了済み';
+                badgeEl.className = 'text-[10px] bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded-full font-bold whitespace-nowrap';
+                if (barEl) barEl.className = 'mx-4 mt-2 bg-emerald-50 border border-emerald-200 text-emerald-950 rounded-xl px-3 py-1.5 text-[11px] flex items-center justify-between gap-2';
+            } else {
+                textEl.innerText = '今日のチェックはまだです（下のボタンか入力欄から回答できます）';
+                badgeEl.innerText = '未完了';
+                badgeEl.className = 'text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-bold whitespace-nowrap';
+                if (barEl) barEl.className = 'mx-4 mt-2 bg-amber-50 border border-amber-200 text-amber-950 rounded-xl px-3 py-1.5 text-[11px] flex items-center justify-between gap-2';
+            }
+        }
+
+        async function fetchCityWeather(cityObj, showNotice = true, markAsInitialDefault = false) {
+            const lat = Number(cityObj.lat);
+            const lon = Number(cityObj.lon);
+            const name = cityObj.name || '選択地域';
+
+            if (Number.isNaN(lat) || Number.isNaN(lon)) {
+                return false;
+            }
+
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
+                const data = await res.json();
+
+                if (data && data.current) {
+                    currentEnv.locationName = name;
+                    currentEnv.temp = Number(data.current.temperature_2m).toFixed(1);
+                    currentEnv.humidity = Math.round(Number(data.current.relative_humidity_2m));
+                    currentEnv.weather = mapWeatherCodeToKey(data.current.weather_code);
+                    if (data.daily && Array.isArray(data.daily.temperature_2m_max) && data.daily.temperature_2m_max[0] !== undefined) {
+                        currentEnv.dailyMaxTemp = Number(data.daily.temperature_2m_max[0]).toFixed(1);
+                    }
+                    if (data.daily && Array.isArray(data.daily.temperature_2m_min) && data.daily.temperature_2m_min[0] !== undefined) {
+                        currentEnv.dailyMinTemp = Number(data.daily.temperature_2m_min[0]).toFixed(1);
+                    }
+                    if (!markAsInitialDefault) {
+                        currentEnv.isInitialDefault = false;
+                    }
+
+                    calculateWBGT();
+                    syncSimulatorInputs();
+                    updateEnvSetupPrompt();
+                    refreshOpeningWeatherBubble();
+
+                    if (showNotice) {
+                        appendSystemNotice(`📍 観測地点を「${name}」に更新しました（気温 ${currentEnv.temp}℃ / 湿度 ${currentEnv.humidity}% / 推定WBGT ${currentEnv.wbgt}℃）`);
+                    }
+                    return true;
+                }
+                throw new Error('Invalid Open-Meteo payload');
+            } catch (primaryErr) {
+                console.warn('Open-Meteo取得フォールバック:', primaryErr);
+                try {
+                    const wttrRes = await fetch(`https://wttr.in/${lat},${lon}?format=j1`);
+                    if (wttrRes.ok) {
+                        const wttrData = await wttrRes.json();
+                        const cond = wttrData?.current_condition?.[0];
+                        if (cond) {
+                            currentEnv.locationName = name;
+                            currentEnv.temp = Number(cond.temp_C).toFixed(1);
+                            currentEnv.humidity = Math.round(Number(cond.humidity));
+                            const code = parseInt(cond.weatherCode, 10);
+                            currentEnv.weather = code === 113 ? 'sunny' : (code <= 119 ? 'cloudy' : (code <= 260 ? 'overcast' : 'rain'));
+                            if (!markAsInitialDefault) {
+                                currentEnv.isInitialDefault = false;
+                            }
+
+                            calculateWBGT();
+                            syncSimulatorInputs();
+                            updateEnvSetupPrompt();
+                            refreshOpeningWeatherBubble();
+
+                            if (showNotice) {
+                                appendSystemNotice(`📍 観測地点を「${name}」に更新しました（気温 ${currentEnv.temp}℃ / 湿度 ${currentEnv.humidity}% / 推定WBGT ${currentEnv.wbgt}℃）`);
+                            }
+                            return true;
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn('フォールバック気象APIも失敗:', fallbackErr);
+                }
+                return false;
+            }
+        }
+
+        /* -------------------------------------------------------------
+           気象コード変換 ＆ UI完全同期ヘルパー
+        ------------------------------------------------------------- */
+        function mapWeatherCodeToKey(code) {
+            if (code === undefined || code === null) return 'cloudy';
+            if (code === 0 || code === 1) return 'sunny';
+            if (code === 2) return 'cloudy';
+            if (code === 3 || code === 45 || code === 48) return 'overcast';
+            return 'rain';
+        }
+
+        function syncSimulatorInputs() {
+            const sliderTemp = document.getElementById('slider-temp');
+            const sliderHumidity = document.getElementById('slider-humidity');
+            const selectWeather = document.getElementById('select-weather');
+
+            const clampedTemp = Math.max(-10, Math.min(50, parseFloat(currentEnv.temp)));
+            const clampedHumidity = Math.max(20, Math.min(100, parseFloat(currentEnv.humidity)));
+
+            if (sliderTemp) sliderTemp.value = clampedTemp;
+            if (sliderHumidity) sliderHumidity.value = clampedHumidity;
+            if (selectWeather) selectWeather.value = currentEnv.weather;
+
+            document.getElementById('val-temp').innerText = `${currentEnv.temp} ℃`;
+            document.getElementById('val-humidity').innerText = `${currentEnv.humidity} %`;
+
+            updateSimulatedDisplay();
+        }
+
+        /* -------------------------------------------------------------
+           現在地自由入力（位置予測 + 公的API座標補正）＆ 同意付きGPS取得
+        ------------------------------------------------------------- */
+        async function resolveLocationWithAI(userQuery) {
+            const systemPrompt = `あなたは日本の地理・位置情報に精通したジオコーディング予測AIです。
+ユーザーが入力した場所から、該当する可能性が高い実際の場所を日本国内優先で最大4件まで予測してください。
+displayName は都道府県名を含めた分かりやすい表記にし、description に短い補足、lat・lon に数値を返してください。`;
+
+            const payload = {
+                contents: [{ role: 'user', parts: [{ text: `入力された場所: 「${userQuery}」` }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            candidates: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        displayName: { type: "STRING" },
+                                        description: { type: "STRING" },
+                                        lat: { type: "NUMBER" },
+                                        lon: { type: "NUMBER" }
+                                    },
+                                    required: ["displayName", "description", "lat", "lon"]
+                                }
+                            },
+                            reasoning: { type: "STRING" }
+                        },
+                        required: ["candidates", "reasoning"]
+                    }
+                }
+            };
+
+            return await callGeminiWithRetry(payload);
+        }
+
+        async function refineCandidateWithGSI(candidate) {
+            try {
+                const cleanName = candidate.displayName.replace(/（.*?）/g, '').trim();
+                const gsiRes = await fetch(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(cleanName)}`);
+                if (gsiRes.ok) {
+                    const gsiData = await gsiRes.json();
+                    if (Array.isArray(gsiData) && gsiData.length > 0 && gsiData[0].geometry && Array.isArray(gsiData[0].geometry.coordinates)) {
+                        return {
+                            ...candidate,
+                            lon: gsiData[0].geometry.coordinates[0],
+                            lat: gsiData[0].geometry.coordinates[1]
+                        };
+                    }
+                }
+            } catch (e) {
+                // 座標補正失敗時は予測座標を利用
+            }
+            return candidate;
+        }
+
+        function renderLocationCandidates(candidates, reasoning, selectedIndex = 0) {
+            const box = document.getElementById('location-candidates-box');
+            const reasonEl = document.getElementById('location-candidates-reason');
+            const listEl = document.getElementById('location-candidates-list');
+
+            if (!candidates || candidates.length <= 1) {
+                box.classList.add('hidden');
+                return;
+            }
+
+            box.classList.remove('hidden');
+            reasonEl.innerHTML = `<i class="fa-solid fa-map-pin mr-1.5"></i><span>${escapeHTML(reasoning || '複数の候補が見つかりました。地域を選択して切り替えられます：')}</span>`;
+            listEl.innerHTML = '';
+
+            candidates.forEach((cand, idx) => {
+                const isSelected = idx === selectedIndex;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = isSelected
+                    ? 'bg-brand-600 text-white border border-brand-700 px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-xs text-left transition'
+                    : 'bg-white hover:bg-brand-50 text-gray-700 border border-gray-300 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-left transition';
+                btn.innerHTML = `<div>📍 ${escapeHTML(cand.displayName)}</div><div class="text-[9px] ${isSelected ? 'text-brand-100' : 'text-gray-400'} font-normal">${escapeHTML(cand.description)}</div>`;
+                btn.onclick = async () => {
+                    const msg = document.getElementById('location-search-msg');
+                    msg.innerText = `🔄 「${cand.displayName}」の気象データを取得中...`;
+                    msg.className = 'text-[11px] text-brand-600 mt-1 font-bold';
+                    const ok = await fetchCityWeather({ name: cand.displayName, lat: cand.lat, lon: cand.lon }, true);
+                    if (ok) {
+                        msg.innerText = `✅ 「${cand.displayName}」の最新データ（${currentEnv.temp}℃ / 湿度${currentEnv.humidity}%）をテスト条件に反映しました！`;
+                        msg.className = 'text-[11px] text-emerald-600 mt-1 font-bold';
+                        renderLocationCandidates(candidates, reasoning, idx);
+                    }
+                };
+                listEl.appendChild(btn);
+            });
+        }
+
+        const HOMONYM_DICT = {
+            '府中': [
+                { displayName: '東京都府中市', description: '東京都多摩地域の都市', lat: 35.6690, lon: 139.4777 },
+                { displayName: '広島県府中市', description: '広島県東部の都市', lat: 34.5682, lon: 133.2371 },
+                { displayName: '広島県安芸郡府中町', description: '広島市に隣接する町', lat: 34.3967, lon: 132.5078 }
+            ],
+            '伊達': [
+                { displayName: '北海道伊達市', description: '北海道胆振地方の都市', lat: 42.4731, lon: 140.8653 },
+                { displayName: '福島県伊達市', description: '福島県北部の都市', lat: 37.8211, lon: 140.5614 }
+            ],
+            '清水': [
+                { displayName: '静岡県静岡市清水区', description: '静岡県中部の港町', lat: 35.0158, lon: 138.4894 },
+                { displayName: '北海道上川郡清水町', description: '北海道十勝地方の町', lat: 43.0128, lon: 142.8825 },
+                { displayName: '和歌山県有田川町清水', description: '和歌山県中部の地域', lat: 34.0881, lon: 135.4253 }
+            ],
+            '池田': [
+                { displayName: '大阪府池田市', description: '大阪府北摂地域の都市', lat: 34.8219, lon: 135.4283 },
+                { displayName: '北海道中川郡池田町', description: '北海道十勝地方の町', lat: 42.9222, lon: 143.4536 },
+                { displayName: '徳島県三好市池田町', description: '徳島県西部の地域', lat: 34.0275, lon: 133.8058 }
+            ],
+            '金山': [
+                { displayName: '愛知県名古屋市中区金山', description: '名古屋市の主要ターミナル', lat: 35.1430, lon: 136.9008 },
+                { displayName: '山形県最上郡金山町', description: '山形県北東部の町', lat: 38.8853, lon: 140.3408 }
+            ]
+        };
+
+        async function searchLocationByName() {
+            const input = document.getElementById('input-location-search');
+            const searchBtn = document.getElementById('btn-location-search');
+            const query = input.value.trim();
+            const msg = document.getElementById('location-search-msg');
+            const candidatesBox = document.getElementById('location-candidates-box');
+
+            if (!query) {
+                msg.innerText = '⚠️ 地名・駅名・施設名などを入力してください。';
+                msg.className = 'text-[11px] text-rose-500 mt-1 font-bold';
+                return;
+            }
+
+            searchBtn.disabled = true;
+            candidatesBox.classList.add('hidden');
+            msg.innerText = '🔎 地図データと候補から該当地域を検索中...';
+            msg.className = 'text-[11px] text-indigo-600 mt-1 font-bold';
+
+            let candidates = [];
+            let reasoningText = '';
+
+            try {
+                const aiResult = await resolveLocationWithAI(query);
+                if (aiResult && Array.isArray(aiResult.candidates) && aiResult.candidates.length > 0) {
+                    candidates = await Promise.all(aiResult.candidates.map(c => refineCandidateWithGSI(c)));
+                    reasoningText = aiResult.reasoning || '';
+                }
+            } catch (aiErr) {
+                console.warn('位置予測フォールバック（公的API検索へ移行）:', aiErr);
+            }
+
+            if (candidates.length === 0) {
+                const cleanKey = query.replace(/[市町村区都府県]$/, '');
+                if (HOMONYM_DICT[cleanKey]) {
+                    candidates = [...HOMONYM_DICT[cleanKey]];
+                    reasoningText = `「${query}」には複数の同名地域が存在します。切り替える場合は選択してください：`;
+                }
+            }
+
+            if (candidates.length === 0) {
+                try {
+                    const gsiRes = await fetch(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(query)}`);
+                    if (gsiRes.ok) {
+                        const gsiData = await gsiRes.json();
+                        if (Array.isArray(gsiData) && gsiData.length > 0) {
+                            candidates = gsiData.slice(0, 4).map(item => ({
+                                displayName: item.properties?.title || query,
+                                description: '国土地理院 住所・地名データ',
+                                lon: item.geometry.coordinates[0],
+                                lat: item.geometry.coordinates[1]
+                            }));
+                            reasoningText = '国土地理院データから該当候補を抽出しました：';
+                        }
+                    }
+                } catch (gsiErr) {
+                    console.warn('国土地理院API検索エラー:', gsiErr);
+                }
+            }
+
+            if (candidates.length === 0) {
+                try {
+                    const omRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=4&language=ja&format=json`);
+                    if (omRes.ok) {
+                        const omData = await omRes.json();
+                        if (omData && Array.isArray(omData.results) && omData.results.length > 0) {
+                            candidates = omData.results.map(r => ({
+                                displayName: r.admin1 ? `${r.admin1} ${r.name}` : r.name,
+                                description: r.country || '気象データ観測地点',
+                                lat: r.latitude,
+                                lon: r.longitude
+                            }));
+                            reasoningText = '観測地点データから候補を抽出しました：';
+                        }
+                    }
+                } catch (omErr) {
+                    console.warn('Open-Meteo Geocodingエラー:', omErr);
+                }
+            }
+
+            try {
+                if (candidates.length > 0) {
+                    const primary = candidates[0];
+                    const success = await fetchCityWeather({ name: primary.displayName, lat: primary.lat, lon: primary.lon }, true);
+                    if (success) {
+                        const multiNote = candidates.length > 1 ? `（他に${candidates.length - 1}件の候補あり）` : '';
+                        msg.innerText = `✅ 「${primary.displayName}」の最新データ（${currentEnv.temp}℃ / 湿度${currentEnv.humidity}%）をテスト条件に反映しました${multiNote}`;
+                        msg.className = 'text-[11px] text-emerald-600 mt-1 font-bold';
+                        renderLocationCandidates(candidates, reasoningText, 0);
+                    } else {
+                        msg.innerText = `⚠️ 「${primary.displayName}」の座標は特定できましたが、気象サーバーが一時的に応答しませんでした。スライダーで手動調整も可能です。`;
+                        msg.className = 'text-[11px] text-amber-600 mt-1 font-bold';
+                    }
+                } else {
+                    msg.innerText = '⚠️ 該当する場所が見つかりませんでした。都道府県名や近くの市町村名・駅名をお試しください。';
+                    msg.className = 'text-[11px] text-amber-600 mt-1 font-bold';
+                }
+            } finally {
+                searchBtn.disabled = false;
+            }
+        }
+
+        function requestGPSWithConsent() {
+            const consentBox = document.getElementById('gps-consent-box');
+            if (consentBox) {
+                consentBox.classList.remove('hidden');
+            } else {
+                confirmAndExecuteGPS();
+            }
+        }
+
+        function cancelGPSConsent() {
+            const consentBox = document.getElementById('gps-consent-box');
+            const msg = document.getElementById('location-search-msg');
+            if (consentBox) consentBox.classList.add('hidden');
+            if (msg) {
+                msg.innerText = '位置情報の取得をキャンセルしました。地名検索や都市選択も利用できます。';
+                msg.className = 'text-[11px] text-gray-500 mt-1';
+            }
+        }
+
+        function confirmAndExecuteGPS() {
+            const consentBox = document.getElementById('gps-consent-box');
+            if (consentBox) consentBox.classList.add('hidden');
+
+            const msg = document.getElementById('location-search-msg');
+            if (!navigator.geolocation) {
+                msg.innerText = '⚠️ お使いのブラウザはGPS位置情報に対応していません。';
+                msg.className = 'text-[11px] text-rose-500 mt-1 font-bold';
+                return;
+            }
+
+            msg.innerText = '📡 GPS位置情報を取得中...';
+            msg.className = 'text-[11px] text-brand-600 mt-1 font-bold';
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const success = await fetchCityWeather({ name: '現在地(GPS)', lat: lat, lon: lon }, true);
+                    if (success) {
+                        msg.innerText = `✅ 現在地(GPS)の最新データ（${currentEnv.temp}℃ / 湿度${currentEnv.humidity}%）をテスト条件に反映しました！`;
+                        msg.className = 'text-[11px] text-emerald-600 mt-1 font-bold';
+                    }
+                },
+                (error) => {
+                    msg.innerText = '⚠️ GPS位置情報の取得が許可されていないか、取得できませんでした。';
+                    msg.className = 'text-[11px] text-rose-500 mt-1 font-bold';
+                },
+                { timeout: 10000 }
+            );
+        }
+
+        function toggleLocationModal(forceState) {
+            const modal = document.getElementById('location-modal');
+            if (typeof forceState === 'boolean') {
+                if (forceState) modal.classList.remove('hidden');
+                else modal.classList.add('hidden');
+            } else {
+                modal.classList.toggle('hidden');
+            }
+        }
+
+        /* -------------------------------------------------------------
+           環境リスク ＆ WBGT算定アルゴリズム（計算式リアルタイム連動）
+        ------------------------------------------------------------- */
+        function getWeatherSolarOffset(weatherKey) {
+            if (weatherKey === 'sunny') return 1.2;
+            if (weatherKey === 'overcast') return -0.6;
+            if (weatherKey === 'rain') return -1.2;
+            return 0.0;
+        }
+
+        function calculateWBGT() {
+            const T = parseFloat(currentEnv.temp);
+            const RH = parseFloat(currentEnv.humidity);
+            const solarOffset = getWeatherSolarOffset(currentEnv.weather);
+
+            let wbgt = 0.735 * T + 0.0374 * RH + 0.00292 * (T * RH) - 4.05 + solarOffset;
+            currentEnv.wbgt = wbgt.toFixed(1);
+
+            if (wbgt >= 31) currentEnv.riskLevel = '危険';
+            else if (wbgt >= 28) currentEnv.riskLevel = '厳重警戒';
+            else if (wbgt >= 25) currentEnv.riskLevel = '警戒';
+            else if (wbgt >= 21) currentEnv.riskLevel = '注意';
+            else currentEnv.riskLevel = 'ほぼ安全';
+
+            updateHeaderWeatherUI();
+            updateFormulaDisplay();
+        }
+
+        function updateFormulaDisplay() {
+            const formulaEl = document.getElementById('sim-formula-live');
+            if (!formulaEl) return;
+            const T = Number(parseFloat(currentEnv.temp) || 0).toFixed(1);
+            const RH = Math.round(Number(currentEnv.humidity) || 0);
+            const offset = getWeatherSolarOffset(currentEnv.weather);
+            const signStr = offset >= 0 ? `+ ${offset.toFixed(1)}` : `- ${Math.abs(offset).toFixed(1)}`;
+            formulaEl.innerText = `WBGT = 0.735×${T} + 0.0374×${RH} + 0.00292×(${T}×${RH}) - 4.05 ${signStr} = ${currentEnv.wbgt}℃`;
+        }
+
+        function updateHeaderWeatherUI() {
+            document.getElementById('header-location-name').innerText = `📍${currentEnv.locationName}:`;
+            document.getElementById('header-temp').innerText = `${currentEnv.temp}℃`;
+            document.getElementById('header-humidity').innerText = `${currentEnv.humidity}%`;
+
+            const tempVal = parseFloat(currentEnv.temp);
+            const humVal = Number(currentEnv.humidity) || 60;
+            const riskLabelEl = document.getElementById('header-risk-label');
+            const badge = document.getElementById('header-risk-level');
+
+            if (!Number.isNaN(tempVal) && tempVal < 20) {
+                const coldStatus = humVal <= 50 ? '快適（乾燥注意）' : '快適（寒暖注意）';
+                if (riskLabelEl) riskLabelEl.innerText = '環境・寒暖リスク:';
+                badge.innerText = coldStatus;
+                badge.className = 'bg-sky-600 text-white px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap';
+                document.getElementById('chat-bar-weather-text').innerText = `📍${currentEnv.locationName}の環境: ${getWeatherLabel(currentEnv.weather)} ${currentEnv.temp}℃ / 湿度 ${currentEnv.humidity}%`;
+                document.getElementById('chat-bar-wbgt').innerText = `${currentEnv.wbgt}℃`;
+                document.getElementById('chat-bar-risk').innerText = coldStatus;
+                return;
+            }
+
+            if (riskLabelEl) riskLabelEl.innerText = '熱中症リスク:';
+            badge.innerText = currentEnv.riskLevel;
+
+            if (currentEnv.riskLevel === '危険') badge.className = 'bg-purple-600 text-white px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap animate-pulse';
+            else if (currentEnv.riskLevel === '厳重警戒') badge.className = 'bg-red-500 text-white px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap';
+            else if (currentEnv.riskLevel === '警戒') badge.className = 'bg-amber-500 text-white px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap';
+            else if (currentEnv.riskLevel === '注意') badge.className = 'bg-yellow-500 text-gray-900 px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap';
+            else badge.className = 'bg-emerald-500 text-white px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap';
+
+            document.getElementById('chat-bar-weather-text').innerText = `📍${currentEnv.locationName}の環境: ${getWeatherLabel(currentEnv.weather)} ${currentEnv.temp}℃ / 湿度 ${currentEnv.humidity}%`;
+            document.getElementById('chat-bar-wbgt').innerText = `${currentEnv.wbgt}℃`;
+            document.getElementById('chat-bar-risk').innerText = currentEnv.riskLevel;
+        }
+
+        function getWeatherLabel(key) {
+            const map = { sunny: '快晴', cloudy: '晴れ/薄曇', overcast: '曇り', rain: '雨' };
+            return map[key] || '晴れ';
+        }
+
+        function updateSimulatedEnvironment() {
+            currentEnv.temp = parseFloat(document.getElementById('slider-temp').value);
+            currentEnv.humidity = parseFloat(document.getElementById('slider-humidity').value);
+            currentEnv.weather = document.getElementById('select-weather').value;
+            currentEnv.isInitialDefault = false;
+
+            document.getElementById('val-temp').innerText = `${currentEnv.temp} ℃`;
+            document.getElementById('val-humidity').innerText = `${currentEnv.humidity} %`;
+
+            calculateWBGT();
+            updateSimulatedDisplay();
+            updateEnvSetupPrompt();
+        }
+
+        function updateSimulatedDisplay() {
+            document.getElementById('sim-wbgt-val').innerText = `${currentEnv.wbgt}℃`;
+            const simBadge = document.getElementById('sim-risk-badge');
+            const adviceBox = document.getElementById('sim-advice-text');
+
+            if (parseFloat(currentEnv.temp) < 0) {
+                simBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold text-white bg-blue-600 mt-1';
+                simBadge.innerText = `低温注意 (気温 ${currentEnv.temp}℃)`;
+                adviceBox.innerText = '【低温・防寒対策】氷点下の環境です。防寒着の着用と乾燥を防ぐ水分補給を心がけましょう。';
+            } else if (currentEnv.riskLevel === '危険') {
+                simBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold text-white bg-purple-600 mt-1';
+                simBadge.innerText = `${currentEnv.riskLevel} (WBGT ${currentEnv.wbgt}℃)`;
+                adviceBox.innerText = '【原則運動中止】暑さの危険が非常に高い状態です。涼しい場所で休み、水分・塩分を補給しましょう。';
+            } else if (currentEnv.riskLevel === '厳重警戒') {
+                simBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold text-white bg-red-500 mt-1';
+                simBadge.innerText = `${currentEnv.riskLevel} (WBGT ${currentEnv.wbgt}℃)`;
+                adviceBox.innerText = '【激しい運動は中止】こまめな休憩と水分・塩分補給を徹底しましょう。';
+            } else if (currentEnv.riskLevel === '警戒') {
+                simBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold text-white bg-amber-500 mt-1';
+                simBadge.innerText = `${currentEnv.riskLevel} (WBGT ${currentEnv.wbgt}℃)`;
+                adviceBox.innerText = '【積極的な休憩・補給】定期的に水分やスポーツドリンクをとり、無理のないペースで過ごしましょう。';
+            } else {
+                simBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold text-white bg-emerald-500 mt-1';
+                simBadge.innerText = `${currentEnv.riskLevel} (WBGT ${currentEnv.wbgt}℃)`;
+                adviceBox.innerText = '【通常活動可能】現時点での環境リスクは低めですが、こまめな水分補給を続けましょう。';
+            }
+        }
+
+        /* -------------------------------------------------------------
+           チャットUI ＆ 対話アルゴリズム
+        ------------------------------------------------------------- */
+        function buildOpeningWeatherMessage() {
+            return `おはようございます。朝活コンディショナーです。<br>現在の環境（${escapeHTML(currentEnv.locationName)}：気温 ${escapeHTML(String(currentEnv.temp))}℃ / 湿度 ${escapeHTML(String(currentEnv.humidity))}% / 推定WBGT ${escapeHTML(String(currentEnv.wbgt))}℃）とあわせて、今朝の体調を確認します。<br><br><strong>1. 現在の体調や、気になる症状（頭痛・めまい・だるさ・吐き気など）はありますか？</strong>`;
+        }
+
+        function refreshOpeningWeatherBubble() {
+            const openingEl = document.getElementById('chat-opening-message');
+            if (!openingEl) return;
+            openingEl.innerHTML = buildOpeningWeatherMessage();
+        }
+
+        function initChatFlow() {
+            document.getElementById('chat-box').innerHTML = '';
+            hideUrgentBanner();
+            chatStep = 0;
+            conversationHistory = [];
+            tempUserData = { condition: '', conditionText: '', sleepHours: 7, activity: '', activityText: '' };
+
+            const openingMsg = buildOpeningWeatherMessage();
+            renderAiBubble(openingMsg, 'chat-opening-message');
+            conversationHistory.push({ role: 'model', parts: [{ text: openingMsg.replace(/<[^>]*>/g, '') }] });
+
+            setQuickOptions([
+                { label: '体調良好（症状なし）', value: '体調良好で特に症状はありません' },
+                { label: '少し眠い・だるい', value: '少し眠気や体のだるさがあります' },
+                { label: '頭痛・のどの痛みあり', value: '頭痛やのどの痛みなど気になる症状があります' },
+                { label: 'めまい・吐き気あり', value: 'めまいや立ちくらみ、吐き気があります' }
+            ]);
+        }
+
+        function appendSystemNotice(text) {
+            const chatBox = document.getElementById('chat-box');
+            const noticeHTML = `
+                <div class="flex justify-center message-pop">
+                    <div class="bg-slate-200/80 text-slate-700 rounded-full px-3.5 py-1 text-[11px] font-bold shadow-xs text-center">
+                        ${text}
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', noticeHTML);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function appendUserMessage(text) {
+            const chatBox = document.getElementById('chat-box');
+            const safeText = escapeHTML(text);
+            const msgHTML = `
+                <div class="flex justify-end message-pop">
+                    <div class="bg-brand-600 text-white rounded-2xl rounded-tr-none px-4 py-2.5 max-w-[80%] text-sm shadow-sm font-medium leading-relaxed">
+                        ${safeText}
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', msgHTML);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function renderAiBubble(htmlContent, bubbleId = '') {
+            const chatBox = document.getElementById('chat-box');
+            const idAttr = bubbleId ? ` id="${escapeHTML(bubbleId)}"` : '';
+            const msgHTML = `
+                <div class="flex items-start space-x-2.5 message-pop">
+                    <div class="w-8 h-8 rounded-2xl bg-gradient-to-tr from-brand-700 to-emerald-500 flex items-center justify-center text-white text-sm font-bold flex-none shadow">
+                        <i class="fa-solid fa-user-doctor"></i>
+                    </div>
+                    <div${idAttr} class="bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none px-4 py-3 max-w-[88%] text-sm shadow-sm leading-relaxed">
+                        ${htmlContent}
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', msgHTML);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function escapeHTML(str) {
+            return String(str).replace(/[&<>"']/g, function (match) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[match];
+            });
+        }
+
+        function showTyping(show) {
+            const indicator = document.getElementById('typing-indicator');
+            if (show) indicator.classList.remove('hidden');
+            else indicator.classList.add('hidden');
+            const chatBox = document.getElementById('chat-box');
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function setQuickOptions(options) {
+            const container = document.getElementById('quick-options');
+            container.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = opt.highlight
+                    ? 'bg-brand-600 hover:bg-brand-700 text-white border border-brand-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm transition hover:scale-105 active:scale-95'
+                    : 'bg-white hover:bg-brand-50 text-brand-800 border border-brand-300 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm transition hover:scale-105 active:scale-95';
+                btn.innerText = opt.label;
+                btn.onclick = () => processStepInput(opt.value || opt.label, opt.value);
+                container.appendChild(btn);
+            });
+        }
+
+        function handleUserSubmit(e) {
+            e.preventDefault();
+            if (isAiProcessing) return;
+            const input = document.getElementById('user-input');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+            processStepInput(text, text);
+        }
+
+        /* -------------------------------------------------------------
+           AI呼び出し関数 (リトライ＆構造化JSON出力)
+        ------------------------------------------------------------- */
+        async function callGeminiWithRetry(payload, maxRetries = 2) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API HTTP Error: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    let text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!text) {
+                        throw new Error('Empty response from Gemini');
+                    }
+                    text = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+                    return JSON.parse(text);
+                } catch (err) {
+                    if (attempt === maxRetries) {
+                        throw err;
+                    }
+                    const delayMs = Math.pow(2, attempt) * 800;
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
+            }
+        }
+
+        function generateOfflineMedicalFallback(step, userText) {
+            const trimmed = userText.trim();
+            const isInvalidInput = trimmed.length < 2 || (/^[a-zA-Z0-9\?\!\.\-\sあいうえおかきくけこ]+$/.test(trimmed) && !/(ok|good|bad|sleep|hour|頭痛|めまい|眠|良好|元気|だる|吐|熱|体育|部活|教室|授業|時間)/i.test(trimmed));
+
+            if (isInvalidInput) {
+                return {
+                    isValid: false,
+                    clarificationMessage: "入力された内容から今の体調や予定を読み取りにくかったため、もう一度かんたんに教えていただけますか？（例：体調良好、6時間、教室の授業）"
+                };
+            }
+
+            if (step === 0) {
+                let comment = "今の体調を教えてくれてありがとうございます。";
+                if (/頭痛|頭が痛|頭重/.test(trimmed)) {
+                    comment = "頭痛があるときは、気圧や気温の変化、水分不足や寝不足が重なっていることがあります。";
+                } else if (/めまい|立ちくらみ|吐き気/.test(trimmed)) {
+                    comment = "めまい・立ちくらみや吐き気があるときは、無理をせず涼しい場所で休み、先生や保健室へ相談してください。";
+                } else if (/眠気|だる|倦怠|疲/.test(trimmed)) {
+                    comment = "眠気やだるさがあるときは、日中の無理を避けてこまめに水分をとるのがおすすめです。";
+                } else if (/良好|元気|なし|大丈夫/.test(trimmed)) {
+                    comment = "体調は良好ですね！今日も天気や予定に合わせて水分や服装を整えていきましょう。";
+                }
+                return {
+                    isValid: true,
+                    extractedCondition: trimmed,
+                    medicalReply: `${comment}\n\n2. 昨夜の睡眠時間は何時間くらいでしたか？`
+                };
+            }
+
+            if (step === 1) {
+                const numMatch = trimmed.match(/(\d+(?:\.\d+)?)/);
+                const hours = numMatch ? parseFloat(numMatch[1]) : (/不足|少|寝てない/.test(trimmed) ? 4.5 : 7.0);
+                const sleepComment = hours < 6
+                    ? `睡眠時間が約${hours}時間と少し短めなので、今日は無理をしすぎず休憩を意識しましょう。`
+                    : `睡眠時間は約${hours}時間としっかり休めていますね。`;
+                return {
+                    isValid: true,
+                    extractedSleepHours: hours,
+                    medicalReply: `${sleepComment}\n\n3. 今日の主な予定（教室の授業・体育・部活など）を教えてください。`
+                };
+            }
+
+            const wbgtVal = parseFloat(currentEnv.wbgt);
+            const hasSymptom = /頭痛|めまい|吐き気|だる|倦怠|熱/.test(tempUserData.conditionText);
+            const isOutdoor = /屋外|部活|体育|運動|グラウンド/.test(trimmed);
+            const isLowSleep = tempUserData.sleepHours < 6;
+
+            let riskStatus = '良好';
+            if (hasSymptom && (wbgtVal >= 25 || isOutdoor)) riskStatus = '保健室・先生へ相談推奨';
+            else if (wbgtVal >= 28 || (wbgtVal >= 25 && (isOutdoor || isLowSleep))) riskStatus = '熱中症警戒';
+            else if (hasSymptom || isLowSleep || wbgtVal >= 25) riskStatus = '要注意';
+
+            const possibleList = [];
+            if (wbgtVal >= 25) possibleList.push(`推定WBGTが${wbgtVal}℃のため、暑さによる水分不足や熱中症リスク`);
+            if (hasSymptom) possibleList.push(`「${tempUserData.conditionText}」という体調サイン`);
+            if (isLowSleep) possibleList.push(`睡眠時間${tempUserData.sleepHours}時間による疲れや集中力低下`);
+            if (possibleList.length === 0) possibleList.push('現時点での大きなリスクは低めですが、日中の気温変化や水分不足');
+
+            const actions = [
+                'のどがかわく前から、こまめに水分をとるようにしましょう。',
+                isOutdoor || wbgtVal >= 25
+                    ? '体育や部活・外での活動中は、休憩と水分・塩分補給を忘れないようにしましょう。'
+                    : '教室や移動中でも、飲み物や羽織れるものを近くに用意しておきましょう。',
+                hasSymptom
+                    ? '体調がすぐれないときは無理をせず、早めに先生や保健室へ相談してください。'
+                    : '途中でめまいやだるさを感じたら、すぐに涼しい場所で休みましょう。'
+            ];
+
+            return {
+                isValid: true,
+                extractedActivity: trimmed,
+                riskStatus,
+                possibleConditions: possibleList.join('、および') + 'に気をつけたい日です。',
+                medicalReply: `${currentEnv.locationName}の環境（気温${currentEnv.temp}℃・湿度${currentEnv.humidity}%・推定WBGT${wbgtVal}℃）と、今朝の体調・睡眠・予定をあわせてまとめました。`,
+                actionItems: actions
+            };
+        }
+
+        function toggleDetailAccordion(detailId, btnEl) {
+            const panel = document.getElementById(detailId);
+            if (!panel) return;
+            const willOpen = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !willOpen);
+            if (btnEl) {
+                btnEl.innerHTML = willOpen
+                    ? '<i class="fa-solid fa-chevron-up mr-1"></i>詳しい理由・対策を閉じる'
+                    : '<i class="fa-solid fa-chevron-down mr-1"></i>詳しい理由・対策を見る';
+            }
+        }
+
+        function checkAllChecklistDone(checklistId) {
+            const box = document.getElementById(checklistId);
+            const completeMsgEl = document.getElementById(`${checklistId}-complete`);
+            if (!box || !completeMsgEl) return;
+
+            const checkboxes = Array.from(box.querySelectorAll('input[type="checkbox"]'));
+            if (checkboxes.length === 0) return;
+            const allChecked = checkboxes.every(cb => cb.checked);
+            completeMsgEl.classList.toggle('hidden', !allChecked);
+        }
+
+        async function processStepInput(userText, valueKey) {
+            if (isAiProcessing) return;
+
+            if (valueKey === 'restart' || userText === 'もう一度診断する') {
+                initChatFlow();
+                return;
+            }
+            if (valueKey === 'view_log') {
+                switchTab('log');
+                return;
+            }
+
+            appendUserMessage(userText);
+            showUrgentBannerIfNeeded(userText);
+            document.getElementById('quick-options').innerHTML = '';
+            isAiProcessing = true;
+            document.getElementById('chat-submit-btn').disabled = true;
+            showTyping(true);
+
+            conversationHistory.push({ role: 'user', parts: [{ text: userText }] });
+
+            const stepDescriptions = {
+                0: "ステップ0（現在の体調・自覚症状の聴取）：ユーザーが現在の体調や自覚症状について有効な回答をしているか判定してください。",
+                1: "ステップ1（昨夜の睡眠時間の聴取）：ユーザーが昨夜の睡眠時間や睡眠状態について有効な回答をしているか判定し、おおよその睡眠時間（数値）を抽出してください。",
+                2: "ステップ2（本日の活動予定の聴取）：ユーザーが今日の学校や日常での活動予定について有効な回答をしているか判定し、これまでの全情報と気象データをもとに最終的な健康管理アドバイスを行ってください。",
+                3: "ステップ3（診断完了後の追加相談）：ユーザーからの体調・予防・過ごし方に関する質問に丁寧に回答してください。"
+            };
+
+            const systemPrompt = `あなたは中高生の毎日の健康管理をサポートするやさしいアシスタントです。
+丁寧で分かりやすい日本語で回答してください。
+
+【現在の気象・環境データ】
+- 観測地点: ${currentEnv.locationName}
+- 気温: ${currentEnv.temp}℃
+- 相対湿度: ${currentEnv.humidity}%
+- 天候: ${getWeatherLabel(currentEnv.weather)}
+- 推定WBGT: ${currentEnv.wbgt}℃（リスク判定: ${currentEnv.riskLevel}）
+
+【現在の対話フェーズ】
+${stepDescriptions[chatStep] || stepDescriptions[3]}
+
+【ルール】
+1. ユーザーの入力が有効な回答でない場合は isValid を false とし、clarificationMessage で優しく聞き返してください。
+2. ステップ0では体調へのコメントと「2. 昨夜の睡眠時間は何時間くらいでしたか？」を聞いてください。
+3. ステップ1では睡眠時間へのコメントと「3. 今日の主な予定（教室の授業・体育・部活など）を教えてください。」を聞いてください。
+4. ステップ2では possibleConditions、riskStatus、medicalReply、actionItems を出力してください。`;
+
+            const payload = {
+                contents: conversationHistory,
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            isValid: { type: "BOOLEAN" },
+                            clarificationMessage: { type: "STRING" },
+                            extractedCondition: { type: "STRING" },
+                            extractedSleepHours: { type: "NUMBER" },
+                            extractedActivity: { type: "STRING" },
+                            medicalReply: { type: "STRING" },
+                            riskStatus: { type: "STRING" },
+                            possibleConditions: { type: "STRING" },
+                            actionItems: {
+                                type: "ARRAY",
+                                items: { type: "STRING" }
+                            }
+                        },
+                        required: ["isValid", "medicalReply"]
+                    }
+                }
+            };
+
+            try {
+                let aiRes;
+                try {
+                    aiRes = await callGeminiWithRetry(payload);
+                } catch (apiErr) {
+                    console.warn('フォールバック判定で継続:', apiErr);
+                    aiRes = generateOfflineMedicalFallback(chatStep, userText);
+                }
+                showTyping(false);
+
+                if (!aiRes.isValid) {
+                    const askAgainText = aiRes.clarificationMessage || "入力された内容を確認しづらかったため、もう一度かんたんに教えていただけますか？";
+                    renderAiBubble(`<div class="space-y-1"><span class="inline-block text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">確認のお願い</span><p class="mt-1">${escapeHTML(askAgainText).replace(/\n/g, '<br>')}</p></div>`);
+                    conversationHistory.push({ role: 'model', parts: [{ text: askAgainText }] });
+                    restoreQuickOptionsForCurrentStep();
+                    return;
+                }
+
+                if (chatStep === 0) {
+                    tempUserData.conditionText = aiRes.extractedCondition || userText;
+                    chatStep = 1;
+                    renderAiBubble(escapeHTML(aiRes.medicalReply).replace(/\n/g, '<br>'));
+                    conversationHistory.push({ role: 'model', parts: [{ text: aiRes.medicalReply }] });
+                    restoreQuickOptionsForCurrentStep();
+
+                } else if (chatStep === 1) {
+                    tempUserData.sleepHours = (typeof aiRes.extractedSleepHours === 'number' && aiRes.extractedSleepHours > 0) ? aiRes.extractedSleepHours : 6.5;
+                    chatStep = 2;
+                    renderAiBubble(escapeHTML(aiRes.medicalReply).replace(/\n/g, '<br>'));
+                    conversationHistory.push({ role: 'model', parts: [{ text: aiRes.medicalReply }] });
+                    restoreQuickOptionsForCurrentStep();
+
+                } else if (chatStep === 2) {
+                    tempUserData.activityText = aiRes.extractedActivity || userText;
+                    chatStep = 3;
+
+                    const fallbackSummary = generateOfflineMedicalFallback(2, tempUserData.activityText);
+                    const statusBadge = aiRes.riskStatus || fallbackSummary.riskStatus || currentEnv.riskLevel || '要注意';
+                    const possibleText = aiRes.possibleConditions || fallbackSummary.possibleConditions || '現在の気象環境と体調・睡眠状況をあわせて確認してください。';
+                    const actions = (Array.isArray(aiRes.actionItems) && aiRes.actionItems.length > 0)
+                        ? aiRes.actionItems
+                        : (fallbackSummary.actionItems || ['こまめな水分補給と休息を心がけましょう。']);
+
+                    const hasSymptom = /頭痛|めまい|吐き気|だる|倦怠|熱|症状/.test(tempUserData.conditionText) || /相談|要注意/.test(statusBadge);
+                    const isLowSleep = tempUserData.sleepHours < 6;
+                    const tempNum = parseFloat(currentEnv.temp);
+                    const humNum = Number(currentEnv.humidity) || 60;
+                    const wbgtNum = parseFloat(currentEnv.wbgt);
+                    const weatherKey = currentEnv.weather || 'cloudy';
+                    const activityStr = String(tempUserData.activityText || '');
+
+                    let alertClass = 'bg-emerald-50/90 border-emerald-200 text-emerald-950';
+                    if (hasSymptom || isLowSleep || ['危険', '厳重警戒', '警戒'].includes(currentEnv.riskLevel)) {
+                        alertClass = 'bg-amber-50/95 border-amber-300 text-amber-950';
+                    }
+
+                    // 最重要アクション（1行）の決定
+                    let topActionOneLine = 'まずは水分をひと口飲んで、気をつけていってらっしゃい！';
+                    if (hasSymptom) {
+                        topActionOneLine = 'つらいときは無理せず休み、早めに先生や保健室へ相談しましょう。';
+                    } else if (isLowSleep) {
+                        topActionOneLine = '睡眠が少なめなので、今日は無理をしすぎず休憩と水分を意識しましょう。';
+                    } else if (wbgtNum >= 28 || /屋外|部活|体育/.test(activityStr) && wbgtNum >= 25) {
+                        topActionOneLine = '暑さ対策に水筒と休憩を意識して、こまめに水分をとるようにしましょう。';
+                    } else if (tempNum < 20) {
+                        topActionOneLine = '朝晩や教室との気温差に備えて、羽織れるもので調節できるようにしましょう。';
+                    }
+
+                    // 日中の最高・最低気温を考慮した時間帯別アドバイス
+                    const maxT = currentEnv.dailyMaxTemp ? parseFloat(currentEnv.dailyMaxTemp) : null;
+                    const minT = currentEnv.dailyMinTemp ? parseFloat(currentEnv.dailyMinTemp) : null;
+                    const extendedActions = [...actions];
+                    if (maxT !== null && minT !== null && !Number.isNaN(maxT) && !Number.isNaN(minT)) {
+                        const diff = (maxT - minT).toFixed(1);
+                        if (/部活|体育|屋外|運動/.test(activityStr)) {
+                            extendedActions.push(`本日の予想気温は最低${minT}℃／最高${maxT}℃（差${diff}℃）です。朝と昼〜放課後の気温変化に合わせて水分と服装を調整しましょう。`);
+                        } else if (parseFloat(diff) >= 7) {
+                            extendedActions.push(`本日の予想気温は最低${minT}℃／最高${maxT}℃（差${diff}℃）です。日中〜夕方の気温差に気をつけましょう。`);
+                        }
+                    }
+
+                    // 天気と予定に合わせた今日の持ち物3点
+                    const topThreeItems = [];
+                    if (weatherKey === 'rain') {
+                        topThreeItems.push('折りたたみ傘');
+                    } else if (tempNum < 20) {
+                        topThreeItems.push(tempNum <= 10 ? '防寒着・上着' : '羽織れる上着');
+                    } else {
+                        topThreeItems.push('水筒（500ml以上）');
+                    }
+
+                    if (weatherKey === 'rain' && !topThreeItems.includes('水筒（500ml以上）')) {
+                        topThreeItems.push('替えの靴下・タオル');
+                    } else if (/体育|部活|屋外|運動/.test(activityStr)) {
+                        topThreeItems.push('汗拭きタオル・スポーツドリンク');
+                    } else if (tempNum < 20 && humNum <= 55) {
+                        topThreeItems.push('リップクリーム・のど飴');
+                    } else {
+                        topThreeItems.push('汗拭きタオル');
+                    }
+
+                    if (tempNum < 20 && humNum <= 55 && !topThreeItems.includes('リップクリーム・のど飴')) {
+                        topThreeItems.push('リップクリーム');
+                    } else if (wbgtNum >= 25 || tempNum >= 28) {
+                        topThreeItems.push('塩分タブレット・日差し対策');
+                    } else if (weatherKey === 'rain') {
+                        topThreeItems.push('水筒・飲み物');
+                    } else {
+                        topThreeItems.push('ハンカチ・ティッシュ');
+                    }
+
+                    const checklistItems = topThreeItems.slice(0, 3);
+                    const checklistId = `checklist-${Date.now()}`;
+                    const detailId = `detail-${Date.now()}`;
+
+                    // 放課後の注意ポイント（帰宅時の気温低下に注意）
+                    const hasActivityOrSports = /体育|部活|屋外|運動|グラウンド/.test(activityStr);
+                    const hasTempSwing = maxT !== null && minT !== null && !Number.isNaN(maxT) && !Number.isNaN(minT) && (maxT - minT) >= 7;
+                    let afterSchoolNote = '';
+                    if (hasActivityOrSports || hasTempSwing || tempNum < 20 || wbgtNum >= 25) {
+                        const tips = [];
+                        if (hasTempSwing || tempNum < 20) {
+                            tips.push('帰宅時の気温低下や寒暖差に注意して、羽織れるものを用意しておきましょう');
+                        }
+                        if (hasActivityOrSports) {
+                            tips.push('放課後の部活や運動時は、水分補給と休憩をこまめにとりましょう');
+                        } else if (wbgtNum >= 25) {
+                            tips.push('日中の暑さ上昇に合わせて、日陰での休憩と水分補給を忘れないでください');
+                        }
+                        afterSchoolNote = `
+                            <div class="text-xs bg-sky-50 border border-sky-200 text-sky-950 rounded-xl p-2.5 space-y-1">
+                                <div class="font-bold text-sky-800 flex items-center">
+                                    <i class="fa-solid fa-sunset mr-1.5"></i>
+                                    <span>放課後の注意ポイント（帰宅時の気温低下に注意）</span>
+                                </div>
+                                <p class="leading-relaxed">${escapeHTML(tips.join('。'))}。</p>
+                            </div>
+                        `;
+                    }
+
+                    // 体調不良（「注意が必要な状態」など）のときに出す保健室提示ボタン
+                    const showNurseButton = hasSymptom || isLowSleep || ['危険', '厳重警戒'].includes(currentEnv.riskLevel);
+                    const nurseButtonHTML = showNurseButton ? `
+                        <button type="button" onclick="openNurseCardModal('${escapeHTML(tempUserData.conditionText)}')" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl text-xs transition flex items-center justify-center space-x-1.5 shadow-xs">
+                            <i class="fa-solid fa-notes-medical"></i>
+                            <span>保健室・先生に見せるメモを開く</span>
+                        </button>
+                    ` : '';
+
+                    // 結果カード最上部に「今日の持ち物（3点）」と「最重要アクション（1行）」を配置
+                    const resultHTML = `
+                        <div class="space-y-2.5">
+                            <div class="rounded-2xl border p-3.5 ${alertClass} shadow-sm space-y-3">
+                                <div class="flex justify-between items-center border-b border-black/10 pb-2">
+                                    <span class="font-extrabold text-sm">【本日のコンディション結果】</span>
+                                    <span class="text-xs bg-white font-bold px-2.5 py-0.5 rounded-full shadow-xs border border-black/10 whitespace-nowrap">${escapeHTML(statusBadge)}</span>
+                                </div>
+
+                                <!-- 1. 最重要アクション（1行） -->
+                                <div class="bg-white/90 border border-black/10 rounded-xl px-3 py-2 text-xs font-extrabold text-slate-900 flex items-center space-x-2">
+                                    <span class="text-brand-600 text-sm shrink-0">⚡</span>
+                                    <span>${escapeHTML(topActionOneLine)}</span>
+                                </div>
+
+                                <!-- 2. 今日の持ち物（3点）＋ 全チェック達成メッセージ -->
+                                <div id="${checklistId}" class="text-xs bg-white/90 p-3 rounded-xl border border-black/10 space-y-2">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="font-extrabold text-gray-900">🎒 今日の持ち物（3点）：${escapeHTML(checklistItems.join('・'))}</span>
+                                        <button type="button" onclick="resetChecklist('${checklistId}')" class="text-[10px] whitespace-nowrap shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-2 py-0.5 rounded-lg font-bold transition">
+                                            やり直す
+                                        </button>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        ${checklistItems.map(item => `
+                                            <label class="inline-flex items-center space-x-1.5 bg-slate-50 hover:bg-brand-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer select-none transition">
+                                                <input type="checkbox" onchange="checkAllChecklistDone('${checklistId}')" class="accent-brand-600 rounded">
+                                                <span class="font-medium">${escapeHTML(item)}</span>
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                    <div id="${checklistId}-complete" class="hidden bg-emerald-100 border border-emerald-300 text-emerald-900 font-bold rounded-lg px-3 py-1.5 text-xs">
+                                        準備完了！今日も気をつけていってらっしゃい！
+                                    </div>
+                                </div>
+
+                                ${afterSchoolNote}
+
+                                ${nurseButtonHTML}
+
+                                <!-- 折りたたみ式：詳しい理由・対策を見る -->
+                                <div>
+                                    <button type="button" onclick="toggleDetailAccordion('${detailId}', this)" class="w-full text-left text-xs font-bold text-slate-700 hover:text-slate-900 bg-white/70 hover:bg-white border border-black/10 rounded-xl px-3 py-2 transition flex items-center justify-between">
+                                        <span><i class="fa-solid fa-chevron-down mr-1"></i>詳しい理由・対策を見る</span>
+                                        <span class="text-[10px] text-slate-500">タップで開閉</span>
+                                    </button>
+                                    <div id="${detailId}" class="hidden mt-2 bg-white/80 p-3 rounded-xl border border-black/10 space-y-2 text-xs">
+                                        <p class="text-gray-700 leading-relaxed">${escapeHTML(aiRes.medicalReply).replace(/\n/g, '<br>')}</p>
+                                        <div>
+                                            <div class="font-bold text-gray-800 mb-0.5">■ 気をつけたいポイント</div>
+                                            <p class="text-gray-700 leading-relaxed">${escapeHTML(possibleText)}</p>
+                                        </div>
+                                        <div>
+                                            <div class="font-bold text-gray-800 mb-0.5">■ 今日の対策メモ</div>
+                                            <ul class="space-y-1 list-disc list-inside leading-relaxed text-gray-700">
+                                                ${extendedActions.map(item => `<li>${escapeHTML(item)}</li>`).join('')}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p class="text-[10px] text-gray-500 pt-1 border-t border-black/5">
+                                    ※本結果は一般的な健康管理の目安であり、医療診断ではありません。つらいときは無理せず保健室や医療機関へ相談してください。
+                                </p>
+                            </div>
+                        </div>
+                    `;
+
+                    renderAiBubble(resultHTML);
+                    conversationHistory.push({ role: 'model', parts: [{ text: `${aiRes.medicalReply} (${possibleText})` }] });
+                    const chatBox = document.getElementById('chat-box');
+                    if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+                    const now = new Date();
+                    const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+                    const newLog = {
+                        id: Date.now(),
+                        date: timeStr,
+                        conditionText: tempUserData.conditionText,
+                        sleepHours: tempUserData.sleepHours,
+                        activityText: tempUserData.activityText,
+                        temp: currentEnv.temp,
+                        wbgt: currentEnv.wbgt,
+                        riskLevel: currentEnv.riskLevel,
+                        advice: extendedActions.join(' ')
+                    };
+
+                    logsDatabase.unshift(newLog);
+                    saveLogsToStorage();
+                    renderLogTable();
+                    updateChartData();
+                    updateDailyReminder();
+                    restoreQuickOptionsForCurrentStep();
+
+                } else {
+                    renderAiBubble(escapeHTML(aiRes.medicalReply).replace(/\n/g, '<br>'));
+                    conversationHistory.push({ role: 'model', parts: [{ text: aiRes.medicalReply }] });
+                    restoreQuickOptionsForCurrentStep();
+                }
+
+            } catch (error) {
+                showTyping(false);
+                console.error("Chat Error:", error);
+                const fallbackRes = generateOfflineMedicalFallback(chatStep, userText);
+                renderAiBubble(escapeHTML(fallbackRes.medicalReply).replace(/\n/g, '<br>'));
+                restoreQuickOptionsForCurrentStep();
+            } finally {
+                isAiProcessing = false;
+                document.getElementById('chat-submit-btn').disabled = false;
+            }
+        }
+
+        function restoreQuickOptionsForCurrentStep() {
+            if (chatStep === 0) {
+                setQuickOptions([
+                    { label: '体調良好（症状なし）', value: '体調良好で特に症状はありません' },
+                    { label: '少し眠い・だるい', value: '少し眠気や体のだるさがあります' },
+                    { label: '頭痛・のどの痛みあり', value: '頭痛やのどの痛みなど気になる症状があります' },
+                    { label: 'めまい・吐き気あり', value: 'めまいや立ちくらみ、吐き気があります' }
+                ]);
+            } else if (chatStep === 1) {
+                setQuickOptions([
+                    { label: '8時間以上', value: '昨夜は8時間以上しっかり眠れました' },
+                    { label: '6〜7時間', value: '昨夜は6〜7時間ほど眠りました' },
+                    { label: '5時間未満', value: '昨夜は5時間未満で睡眠不足です' }
+                ]);
+            } else if (chatStep === 2) {
+                const todayPreset = getTodayScheduledOption();
+                setQuickOptions([
+                    { label: todayPreset.label, value: todayPreset.value, highlight: true },
+                    { label: '教室の授業', value: '今日は教室での授業が中心です' },
+                    { label: '体育あり', value: '今日は体育の授業があります' },
+                    { label: '屋外の部活', value: '今日は屋外での部活動があります' }
+                ]);
+            } else {
+                setQuickOptions([
+                    { label: '水分・体調ケアのコツ', value: '体調と水分補給の目安を教えてください' },
+                    { label: '体調ログを確認する', value: 'view_log' },
+                    { label: '最初から診断をやり直す', value: 'restart' }
+                ]);
+            }
+        }
+
+        /* -------------------------------------------------------------
+           体調ログテーブル ＆ Chart.js 相関グラフ表示
+        ------------------------------------------------------------- */
+        function getConditionScore(conditionText) {
+            if (/良好|異常なし/.test(conditionText)) return 3;
+            if (/めまい|吐き気|頭痛|発熱/.test(conditionText)) return 1;
+            return 2;
+        }
+
+        function computeCorrelationText(logs) {
+            const badgeEl = document.getElementById('correlation-summary-badge');
+            if (!badgeEl) return;
+            if (!logs || logs.length === 0) {
+                badgeEl.innerText = '記録なし（あと5件で相関を表示）';
+                return;
+            }
+            if (logs.length < 5) {
+                const remain = 5 - logs.length;
+                const latest = logs[0];
+                const sleepVal = Number(latest.sleepHours) || 0;
+                const wbgtVal = Number(latest.wbgt) || 0;
+                let miniReview = '標準バランス';
+                if (sleepVal < 6 && wbgtVal >= 25) miniReview = '寝不足×暑さに注意';
+                else if (sleepVal < 6) miniReview = '睡眠不足に注意';
+                else if (wbgtVal >= 25) miniReview = '暑さ・水分補給に注意';
+                else if (Number(currentEnv.temp) < 20) miniReview = '寒暖・乾燥に注意';
+                badgeEl.innerText = `ミニ振り返り：${miniReview}（あと${remain}件で相関を表示）`;
+                return;
+            }
+            const xs = logs.map(l => Number(l.sleepHours) || 0);
+            const ys = logs.map(l => Number(l.wbgt) || 0);
+            const meanX = xs.reduce((a, b) => a + b, 0) / xs.length;
+            const meanY = ys.reduce((a, b) => a + b, 0) / ys.length;
+            let num = 0, denX = 0, denY = 0;
+            for (let i = 0; i < xs.length; i++) {
+                const dx = xs[i] - meanX;
+                const dy = ys[i] - meanY;
+                num += dx * dy;
+                denX += dx * dx;
+                denY += dy * dy;
+            }
+            const denom = Math.sqrt(denX * denY);
+            if (denom === 0) {
+                badgeEl.innerText = '睡眠×WBGT相関: 変動なし';
+                return;
+            }
+            const r = num / denom;
+            const rText = r.toFixed(2);
+            const trendText = r >= 0.4 ? '正の相関' : (r <= -0.4 ? '負の相関' : '弱い相関');
+            badgeEl.innerText = `睡眠×WBGT相関係数 r = ${rText}（${trendText}）`;
+        }
+
+        function resetChecklist(checklistId) {
+            const box = document.getElementById(checklistId);
+            if (!box) return;
+            box.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            const completeMsgEl = document.getElementById(`${checklistId}-complete`);
+            if (completeMsgEl) completeMsgEl.classList.add('hidden');
+        }
+
+        function renderLogTable() {
+            const tbody = document.getElementById('log-table-body');
+            tbody.innerHTML = '';
+
+            let totalSleep = 0;
+            let goodSleepCount = 0;
+            let symptomCount = 0;
+
+            logsDatabase.forEach(item => {
+                totalSleep += Number(item.sleepHours) || 0;
+                if ((Number(item.sleepHours) || 0) >= 6) goodSleepCount += 1;
+                if (!/良好|異常なし/.test(item.conditionText)) symptomCount += 1;
+            });
+
+            const periodMode = document.getElementById('log-period-select')?.value || 'all';
+            const periodScopedLogs = periodMode === 'recent7' ? logsDatabase.slice(0, 7) : logsDatabase;
+
+            const filterMode = document.getElementById('log-filter-select')?.value || 'all';
+            const filteredLogs = periodScopedLogs.filter(item => {
+                if (filterMode === 'symptom') return !/良好|異常なし/.test(item.conditionText);
+                if (filterMode === 'short_sleep') return (Number(item.sleepHours) || 0) < 6;
+                if (filterMode === 'high_risk') return ['警戒', '厳重警戒', '危険'].includes(item.riskLevel);
+                return true;
+            });
+
+            if (filteredLogs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-gray-400 whitespace-nowrap">該当する記録がありません。</td></tr>`;
+            } else {
+                filteredLogs.forEach(item => {
+                    const hasSymptom = !/良好|異常なし/.test(item.conditionText);
+                    const isShortSleep = (Number(item.sleepHours) || 0) < 6;
+                    const isHighRisk = ['警戒', '厳重警戒', '危険'].includes(item.riskLevel);
+                    const isCautionDay = hasSymptom || isShortSleep || isHighRisk;
+                    const tr = document.createElement('tr');
+                    tr.className = `${isCautionDay ? 'bg-amber-50/40' : ''} hover:bg-gray-50 transition border-b border-gray-100`;
+                    tr.innerHTML = `
+                        <td class="px-3.5 py-3 font-mono text-[11px] text-gray-500 whitespace-nowrap">
+                            <div>${escapeHTML(item.date)}</div>
+                            ${isCautionDay ? `<span class="inline-block mt-0.5 text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold font-sans whitespace-nowrap">要注意日</span>` : ''}
+                        </td>
+                        <td class="px-3.5 py-3 font-bold text-gray-800 whitespace-nowrap">${escapeHTML(item.conditionText)}</td>
+                        <td class="px-3.5 py-3 whitespace-nowrap ${isShortSleep ? 'text-rose-700 font-bold' : ''}">${escapeHTML(String(item.sleepHours))} 時間</td>
+                        <td class="px-3.5 py-3 whitespace-nowrap">${escapeHTML(item.activityText)}</td>
+                        <td class="px-3.5 py-3 whitespace-nowrap">${escapeHTML(String(item.temp))}℃ <span class="text-gray-400 text-[10px]">(WBGT ${escapeHTML(String(item.wbgt))}℃)</span></td>
+                        <td class="px-3.5 py-3 whitespace-nowrap">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${getRiskBadgeStyle(item.riskLevel)}">
+                                ${escapeHTML(item.riskLevel)}
+                            </span>
+                        </td>
+                        <td class="px-3.5 py-3 text-center whitespace-nowrap">
+                            <button type="button" onclick="deleteLogById(${item.id})" title="この1件を削除" class="text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-2 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap">
+                                1件削除
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            document.getElementById('summary-days-count').innerText = `${logsDatabase.length} 日`;
+            const rateEl = document.getElementById('summary-health-rate');
+            const insightEl = document.getElementById('log-insight-text');
+
+            if (logsDatabase.length > 0) {
+                const avg = (totalSleep / logsDatabase.length).toFixed(1);
+                const goodRate = Math.round((goodSleepCount / logsDatabase.length) * 100);
+                document.getElementById('summary-avg-sleep').innerText = `${avg} 時間`;
+                if (rateEl) rateEl.innerText = `${goodRate}%`;
+                if (insightEl) {
+                    insightEl.innerText = `記録${logsDatabase.length}件のうち、気になる症状ありは${symptomCount}件、6時間以上睡眠は${goodRate}%です。つらい日や寝不足が続いた日は休息を優先しましょう。`;
+                }
+            } else {
+                document.getElementById('summary-avg-sleep').innerText = `-- 時間`;
+                if (rateEl) rateEl.innerText = `--%`;
+                if (insightEl) {
+                    insightEl.innerText = `まだ記録がありません。チャット画面から朝の体調チェックを行うと履歴が保存されます。`;
+                }
+            }
+
+            computeCorrelationText(logsDatabase);
+        }
+
+        function getRiskBadgeStyle(level) {
+            if (level === '危険') return 'bg-purple-100 text-purple-700';
+            if (level === '厳重警戒') return 'bg-red-100 text-red-700';
+            if (level === '警戒') return 'bg-amber-100 text-amber-700';
+            return 'bg-emerald-100 text-emerald-700';
+        }
+
+        function buildChartSeries() {
+            const sortedAscLogs = [...logsDatabase].sort((a, b) => {
+                const ta = Date.parse(String(a.date || '').replace(' ', 'T')) || Number(a.id) || 0;
+                const tb = Date.parse(String(b.date || '').replace(' ', 'T')) || Number(b.id) || 0;
+                return ta - tb;
+            });
+            return {
+                labels: sortedAscLogs.map(l => String(l.date).split(' ')[0].slice(5)),
+                sleepData: sortedAscLogs.map(l => Number(l.sleepHours) || 0),
+                wbgtData: sortedAscLogs.map(l => Number(l.wbgt) || 0),
+                conditionData: sortedAscLogs.map(l => getConditionScore(l.conditionText))
+            };
+        }
+
+        function initChart() {
+            if (typeof Chart === 'undefined') return;
+            const canvas = document.getElementById('healthChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (healthChartInstance) {
+                healthChartInstance.destroy();
+            }
+            const series = buildChartSeries();
+
+            healthChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: series.labels,
+                    datasets: [
+                        {
+                            label: '睡眠時間 (時間)',
+                            data: series.sleepData,
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                            fill: true,
+                            tension: 0.3,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '環境WBGT (℃)',
+                            data: series.wbgtData,
+                            borderColor: '#f59e0b',
+                            borderDash: [4, 4],
+                            backgroundColor: 'transparent',
+                            tension: 0.3,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: '体調スコア (1〜3)',
+                            data: series.conditionData,
+                            borderColor: '#6366f1',
+                            backgroundColor: '#6366f1',
+                            tension: 0.2,
+                            yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: '睡眠(h) / 体調(1-3)', font: { size: 10 } },
+                            suggestedMin: 0,
+                            suggestedMax: 10
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'WBGT(℃)', font: { size: 10 } },
+                            grid: { drawOnChartArea: false },
+                            suggestedMin: 15,
+                            suggestedMax: 35
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        function updateChartData() {
+            if (!healthChartInstance) {
+                initChart();
+                return;
+            }
+            const series = buildChartSeries();
+            healthChartInstance.data.labels = series.labels;
+            healthChartInstance.data.datasets[0].data = series.sleepData;
+            healthChartInstance.data.datasets[1].data = series.wbgtData;
+            if (healthChartInstance.data.datasets[2]) {
+                healthChartInstance.data.datasets[2].data = series.conditionData;
+            }
+            healthChartInstance.update();
+        }
+
+        /* -------------------------------------------------------------
+           UI タブ切り替え ＆ モーダル制御 ＆ データ保存
+        ------------------------------------------------------------- */
+        function switchTab(tabName) {
+            const views = ['chat', 'log', 'env'];
+            views.forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                const btn = document.getElementById(`tab-${v}-btn`);
+                btn.className = 'flex-1 py-2 rounded-xl text-center transition flex items-center justify-center space-x-2 hover:bg-white/60 text-gray-600 font-bold whitespace-nowrap';
+            });
+
+            document.getElementById(`view-${tabName}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-${tabName}-btn`);
+            activeBtn.className = 'flex-1 py-2 rounded-xl text-center transition flex items-center justify-center space-x-2 bg-white text-brand-700 shadow-sm font-bold whitespace-nowrap';
+
+            if (tabName === 'log') {
+                renderLogTable();
+                updateChartData();
+            }
+        }
+
+        function toggleTechModal(forceState) {
+            const modal = document.getElementById('tech-modal');
+            if (!modal) return;
+            if (typeof forceState === 'boolean') {
+                modal.classList.toggle('hidden', !forceState);
+            } else {
+                modal.classList.toggle('hidden');
+            }
+        }
+
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(logsDatabase, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `asakatsu_conditioner_log_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function exportCSV() {
+            const headers = ['id', 'date', 'conditionText', 'sleepHours', 'activityText', 'temp', 'wbgt', 'riskLevel', 'advice'];
+            const escapeCSV = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+            const rows = [
+                headers.join(','),
+                ...logsDatabase.map(item => headers.map(h => escapeCSV(item[h])).join(','))
+            ];
+            const bom = '\uFEFF';
+            const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(bom + rows.join('\n'));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `asakatsu_conditioner_log_${Date.now()}.csv`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+    </script>
+</body>
+</html>
